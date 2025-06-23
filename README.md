@@ -1,6 +1,8 @@
 i hope to update this in the near future to actually make this COMPILE
 for now it just translates to c & asm but
-you have to manually link it & compile it
+you have to manually link it / compile it
 will be fixed but for now i dont know
+also codegenasm.c is really funky
+both codegens are unoptimized will fix that soonTM
 
 <img src="Z.png" alt="My Image" width="300">
