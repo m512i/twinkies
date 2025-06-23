@@ -3,3 +3,4 @@ for now it just translates to c & asm but
 you have to manually link it & compile it
 will be fixed but for now i dont know
 
+<img src="Z.png" alt="My Image" width="300">
