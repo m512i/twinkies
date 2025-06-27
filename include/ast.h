@@ -46,6 +46,7 @@ struct Expr {
                 int64_t number_value;
                 bool bool_value;
             } value;
+            bool is_bool_literal;
         } literal;
         
         struct {

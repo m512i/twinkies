@@ -16,6 +16,8 @@ static const Keyword keywords[] = {
     {"print", TOKEN_PRINT},
     {"int", TOKEN_INT},
     {"bool", TOKEN_BOOL},
+    {"true", TOKEN_TRUE},
+    {"false", TOKEN_FALSE},
     {NULL, TOKEN_ERROR}
 };
 
@@ -70,26 +72,17 @@ static bool match(Lexer* lexer, char expected) {
 static void skip_whitespace(Lexer* lexer) {
     while (!is_at_end(lexer)) {
         char c = peek(lexer);
-        switch (c) {
-            case ' ':
-            case '\r':
-            case '\t':
+        if (c == ' ' || c == '\r' || c == '\t' || c == '\n') {
+            advance(lexer);
+        } else if (c == '/' && peek_next(lexer) == '/') {
+            // Skip comment until end of line
+            advance(lexer); // skip first '/'
+            advance(lexer); // skip second '/'
+            while (peek(lexer) != '\n' && !is_at_end(lexer)) {
                 advance(lexer);
-                break;
-            case '\n':
-                advance(lexer);
-                break;
-            case '/':
-                if (peek_next(lexer) == '/') {
-                    while (peek(lexer) != '\n' && !is_at_end(lexer)) {
-                        advance(lexer);
-                    }
-                } else {
-                    return;
-                }
-                break;
-            default:
-                return;
+            }
+        } else {
+            break;
         }
     }
 }
@@ -107,6 +100,11 @@ static Token make_token(Lexer* lexer, TokenType type) {
     
     token.line = lexer->line;
     token.column = lexer->column - (lexer->current - lexer->start);
+    if (type == TOKEN_TRUE) {
+        token.literal.bool_value = true;
+    } else if (type == TOKEN_FALSE) {
+        token.literal.bool_value = false;
+    }
     return token;
 }
 
@@ -148,6 +146,11 @@ static Token identifier(Lexer* lexer) {
     
     Token token = make_token(lexer, TOKEN_IDENTIFIER);
     token.type = identifier_type(token.lexeme);
+    if (token.type == TOKEN_TRUE) {
+        token.literal.bool_value = true;
+    } else if (token.type == TOKEN_FALSE) {
+        token.literal.bool_value = false;
+    }
     return token;
 }
 
@@ -309,6 +312,8 @@ const char* token_type_to_string(TokenType type) {
         case TOKEN_ARROW: return "ARROW";
         case TOKEN_EOF: return "EOF";
         case TOKEN_ERROR: return "ERROR";
+        case TOKEN_TRUE: return "TRUE";
+        case TOKEN_FALSE: return "FALSE";
         default: return "UNKNOWN";
     }
 }
@@ -319,6 +324,10 @@ void token_print(const Token* token) {
     
     if (token->type == TOKEN_NUMBER) {
         printf(", value: %lld", token->literal.number_value);
+    }
+    
+    if (token->type == TOKEN_TRUE || token->type == TOKEN_FALSE) {
+        printf(", value: %s", token->literal.bool_value ? "true" : "false");
     }
     
     printf("}\n");

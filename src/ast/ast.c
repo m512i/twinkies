@@ -6,6 +6,7 @@ Expr* expr_literal_number(int64_t value, int line, int column) {
     expr->line = line;
     expr->column = column;
     expr->data.literal.value.number_value = value;
+    expr->data.literal.is_bool_literal = false;
     return expr;
 }
 
@@ -15,6 +16,7 @@ Expr* expr_literal_bool(bool value, int line, int column) {
     expr->line = line;
     expr->column = column;
     expr->data.literal.value.bool_value = value;
+    expr->data.literal.is_bool_literal = true;
     return expr;
 }
 

@@ -1,4 +1,12 @@
 #include "../include/semantic.h"
+#include <stdarg.h>
+
+// Forward declarations for static helpers
+static Symbol* scope_define_function_overload(SemanticAnalyzer* analyzer, Function* func);
+static Symbol* resolve_function_overload(SemanticAnalyzer* analyzer, const char* name, DynamicArray* arg_types);
+static void make_signature_string(DynamicArray* params, char* buf, size_t buflen);
+static bool parameter_list_equals(DynamicArray* a, DynamicArray* b);
+static DynamicArray* get_or_create_overload_set(SemanticAnalyzer* analyzer, const char* name);
 
 SemanticAnalyzer* semantic_create(Program* program, Error* error) {
     SemanticAnalyzer* analyzer = safe_malloc(sizeof(SemanticAnalyzer));
@@ -25,14 +33,12 @@ void semantic_destroy(SemanticAnalyzer* analyzer) {
 bool semantic_analyze(SemanticAnalyzer* analyzer) {
     for (size_t i = 0; i < analyzer->program->functions.size; i++) {
         Function* func = (Function*)array_get(&analyzer->program->functions, i);
-        scope_define(analyzer, func->name, SYMBOL_FUNCTION, func->return_type);
+        scope_define_function_overload(analyzer, func);
     }
-    
     for (size_t i = 0; i < analyzer->program->functions.size; i++) {
         Function* func = (Function*)array_get(&analyzer->program->functions, i);
         type_check_function(analyzer, func);
     }
-    
     return !analyzer->had_error;
 }
 
@@ -95,7 +101,11 @@ DataType type_check_expression(SemanticAnalyzer* analyzer, Expr* expr) {
     
     switch (expr->type) {
         case EXPR_LITERAL:
-            return TYPE_INT; 
+            if (expr->data.literal.is_bool_literal) {
+                return TYPE_BOOL;
+            } else {
+                return TYPE_INT;
+            }
             
         case EXPR_VARIABLE: {
             Symbol* symbol = scope_resolve(analyzer, expr->data.variable.name);
@@ -145,20 +155,36 @@ DataType type_check_expression(SemanticAnalyzer* analyzer, Expr* expr) {
         }
         
         case EXPR_CALL: {
-            Symbol* symbol = scope_resolve(analyzer, expr->data.call.name);
+            // Build argument type list
+            DynamicArray arg_types;
+            array_init(&arg_types, expr->data.call.args.size);
+            for (size_t i = 0; i < expr->data.call.args.size; i++) {
+                Expr* arg_expr = (Expr*)array_get(&expr->data.call.args, i);
+                DataType arg_type = type_check_expression(analyzer, arg_expr);
+                Parameter* p = safe_malloc(sizeof(Parameter));
+                p->name = NULL;
+                p->type = arg_type;
+                array_push(&arg_types, p);
+            }
+            Symbol* symbol = resolve_function_overload(analyzer, expr->data.call.name, &arg_types);
+            // Free temporary arg_types array
+            for (size_t i = 0; i < arg_types.size; i++) safe_free(array_get(&arg_types, i));
+            array_free(&arg_types);
             if (!symbol) {
-                semantic_error_undefined(analyzer, expr->data.call.name, expr->line, expr->column);
+                char sig[128];
+                sig[0] = '\0';
+                for (size_t i = 0; i < expr->data.call.args.size; i++) {
+                    Expr* arg_expr = (Expr*)array_get(&expr->data.call.args, i);
+                    DataType arg_type = type_check_expression(analyzer, arg_expr);
+                    strncat(sig, data_type_to_string(arg_type), sizeof(sig) - strlen(sig) - 1);
+                    if (i + 1 < expr->data.call.args.size) strncat(sig, ",", sizeof(sig) - strlen(sig) - 1);
+                }
+                char msg[256];
+                snprintf(msg, sizeof(msg), "No matching overload for function '%s' with argument types: (%s)", expr->data.call.name, sig);
+                semantic_error(analyzer, msg, expr->line, expr->column);
                 return TYPE_VOID;
             }
-            
-            if (symbol->type != SYMBOL_FUNCTION) {
-                semantic_error(analyzer, "Can only call functions", expr->line, expr->column);
-                return TYPE_VOID;
-            }
-            
-            // Check argument count and types
-            // TODO: Implement proper function signature checking - fix this alan
-            
+            // Argument count/type checking is implicit in overload resolution
             return symbol->data_type;
         }
         
@@ -179,15 +205,15 @@ DataType type_check_statement(SemanticAnalyzer* analyzer, Stmt* stmt) {
             
         case STMT_VAR_DECL: {
             DataType declared_type = stmt->data.var_decl.type;
-            
             if (stmt->data.var_decl.initializer) {
                 DataType init_type = type_check_expression(analyzer, stmt->data.var_decl.initializer);
-                if (!type_check_assignment(analyzer, declared_type, init_type)) {
+                if (init_type == TYPE_VOID) {
+                    // Suppress further error, already reported
+                } else if (!type_check_assignment(analyzer, declared_type, init_type)) {
                     semantic_error_type_mismatch(analyzer, declared_type, init_type, 
                                                stmt->line, stmt->column);
                 }
             }
-            
             scope_define(analyzer, stmt->data.var_decl.name, SYMBOL_VARIABLE, declared_type);
             return TYPE_VOID;
         }
@@ -199,13 +225,13 @@ DataType type_check_statement(SemanticAnalyzer* analyzer, Stmt* stmt) {
                                        stmt->line, stmt->column);
                 return TYPE_VOID;
             }
-            
             DataType value_type = type_check_expression(analyzer, stmt->data.assignment.value);
-            if (!type_check_assignment(analyzer, symbol->data_type, value_type)) {
+            if (value_type == TYPE_VOID) {
+                // Suppress further error, already reported
+            } else if (!type_check_assignment(analyzer, symbol->data_type, value_type)) {
                 semantic_error_type_mismatch(analyzer, symbol->data_type, value_type, 
                                            stmt->line, stmt->column);
             }
-            
             return TYPE_VOID;
         }
         
@@ -386,4 +412,86 @@ bool is_boolean_type(DataType type) {
 
 bool types_are_compatible(DataType type1, DataType type2) {
     return type1 == type2;
+}
+
+// Helper: Compare parameter lists for equality
+static bool parameter_list_equals(DynamicArray* a, DynamicArray* b) {
+    if (a->size != b->size) return false;
+    for (size_t i = 0; i < a->size; i++) {
+        Parameter* pa = (Parameter*)array_get(a, i);
+        Parameter* pb = (Parameter*)array_get(b, i);
+        if (pa->type != pb->type) return false;
+    }
+    return true;
+}
+
+// Helper: Make a signature string for a function (for error messages)
+static void make_signature_string(DynamicArray* params, char* buf, size_t buflen) {
+    buf[0] = '\0';
+    for (size_t i = 0; i < params->size; i++) {
+        Parameter* p = (Parameter*)array_get(params, i);
+        strncat(buf, data_type_to_string(p->type), buflen - strlen(buf) - 1);
+        if (i + 1 < params->size) strncat(buf, ",", buflen - strlen(buf) - 1);
+    }
+}
+
+// Overload-aware symbol table: store a DynamicArray of function symbols for each name
+static DynamicArray* get_or_create_overload_set(SemanticAnalyzer* analyzer, const char* name) {
+    DynamicArray* overloads = hashtable_get(analyzer->current_scope->symbols, name);
+    if (!overloads) {
+        overloads = safe_malloc(sizeof(DynamicArray));
+        array_init(overloads, 2);
+        hashtable_put(analyzer->current_scope->symbols, name, overloads);
+    }
+    return overloads;
+}
+
+// Overload-aware scope_define for functions
+static Symbol* scope_define_function_overload(SemanticAnalyzer* analyzer, Function* func) {
+    DynamicArray* overloads = get_or_create_overload_set(analyzer, func->name);
+    // Check for duplicate signature
+    for (size_t i = 0; i < overloads->size; i++) {
+        Symbol* sym = (Symbol*)array_get(overloads, i);
+        if (parameter_list_equals(&sym->data.function.params, &func->params)) {
+            char sig[128];
+            make_signature_string(&func->params, sig, sizeof(sig));
+            char msg[256];
+            snprintf(msg, sizeof(msg), "Function '%s(%s)' already defined", func->name, sig);
+            semantic_error_redefined(analyzer, msg, 0, 0);
+            return NULL;
+        }
+    }
+    Symbol* sym = safe_malloc(sizeof(Symbol));
+    sym->name = string_copy(func->name);
+    sym->type = SYMBOL_FUNCTION;
+    sym->data_type = func->return_type;
+    sym->scope_level = analyzer->current_scope->level;
+    array_init(&sym->data.function.params, func->params.size);
+    for (size_t j = 0; j < func->params.size; j++) {
+        Parameter* param = (Parameter*)array_get(&func->params, j);
+        Parameter* param_copy = safe_malloc(sizeof(Parameter));
+        param_copy->name = string_copy(param->name);
+        param_copy->type = param->type;
+        array_push(&sym->data.function.params, param_copy);
+    }
+    array_push(overloads, sym);
+    return sym;
+}
+
+// Overload-aware function resolution
+static Symbol* resolve_function_overload(SemanticAnalyzer* analyzer, const char* name, DynamicArray* arg_types) {
+    Scope* scope = analyzer->current_scope;
+    while (scope) {
+        DynamicArray* overloads = hashtable_get(scope->symbols, name);
+        if (overloads) {
+            for (size_t i = 0; i < overloads->size; i++) {
+                Symbol* sym = (Symbol*)array_get(overloads, i);
+                if (parameter_list_equals(&sym->data.function.params, arg_types)) {
+                    return sym;
+                }
+            }
+        }
+        scope = scope->parent;
+    }
+    return NULL;
 } 

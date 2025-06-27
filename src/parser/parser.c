@@ -174,17 +174,20 @@ Expr* parse_primary(Parser* parser) {
         return expr_literal_number(parser->previous.literal.number_value,
                                  parser->previous.line, parser->previous.column);
     }
-    
+    if (parser_match(parser, TOKEN_TRUE)) {
+        return expr_literal_bool(true, parser->previous.line, parser->previous.column);
+    }
+    if (parser_match(parser, TOKEN_FALSE)) {
+        return expr_literal_bool(false, parser->previous.line, parser->previous.column);
+    }
     if (parser_match(parser, TOKEN_IDENTIFIER)) {
         return parse_call(parser);
     }
-    
     if (parser_match(parser, TOKEN_LPAREN)) {
         Expr* expr = parse_expression(parser);
         parser_consume(parser, TOKEN_RPAREN, "Expect ')' after expression.");
         return expr_group(expr, expr->line, expr->column);
     }
-    
     parser_error(parser, "Expect expression.");
     return NULL;
 }

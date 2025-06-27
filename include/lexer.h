@@ -46,7 +46,10 @@ typedef enum {
     TOKEN_ARROW,     // ->
     
     TOKEN_EOF,
-    TOKEN_ERROR
+    TOKEN_ERROR,
+    
+    TOKEN_TRUE,      // true
+    TOKEN_FALSE,     // false
 } TokenType;
 
 typedef struct {
