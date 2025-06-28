@@ -1,11 +1,16 @@
 #include "../include/parser.h"
 
-Parser* parser_create(Lexer* lexer, Error* error) {
+// Forward declarations
+Expr* finish_call(Parser* parser, Expr* callee);
+Expr* finish_array_index(Parser* parser, Expr* array);
+
+Parser* parser_create(Lexer* lexer, ErrorContext* error_context) {
     Parser* parser = safe_malloc(sizeof(Parser));
     parser->lexer = lexer;
-    parser->error = error;
+    parser->error_context = error_context;
     parser->had_error = false;
     parser->panic_mode = false;
+    parser->consecutive_errors = 0;
     
     parser->current = lexer_next_token(lexer);
     parser->previous = parser->current;
@@ -49,6 +54,7 @@ bool parser_match(Parser* parser, TokenType type) {
 
 void parser_synchronize(Parser* parser) {
     parser->panic_mode = false;
+    parser->consecutive_errors = 0;  // Reset error counter on successful sync
     
     while (parser->current.type != TOKEN_EOF) {
         if (parser->previous.type == TOKEN_SEMICOLON) return;
@@ -68,17 +74,57 @@ void parser_synchronize(Parser* parser) {
     }
 }
 
+void parser_reset_error_count(Parser* parser) {
+    parser->consecutive_errors = 0;
+}
+
 void parser_error(Parser* parser, const char* message) {
     if (parser->panic_mode) return;
-    parser->panic_mode = true;
-    parser->had_error = true;
     
-    if (parser->error) {
-        error_set(parser->error, ERROR_PARSER, message, 
-                 parser->current.line, parser->current.column);
+    // Be more permissive - allow more errors before setting panic mode
+    parser->consecutive_errors++;
+    
+    // Increase the threshold to allow more errors to be collected
+    if (parser->consecutive_errors > 10) {
+        parser->panic_mode = true;
+        parser->consecutive_errors = 0;
     }
     
-    parser_synchronize(parser);
+    parser->had_error = true;
+    
+    if (parser->error_context) {
+        char suggestion[256] = "";
+        
+        // Provide context-specific suggestions
+        if (strstr(message, "Expect ')'")) {
+            strcpy(suggestion, "Check for matching parentheses and ensure all '(' have corresponding ')'");
+        } else if (strstr(message, "Expect '}'")) {
+            strcpy(suggestion, "Check for matching braces and ensure all '{' have corresponding '}'");
+        } else if (strstr(message, "Expect ';'")) {
+            strcpy(suggestion, "Add semicolon at the end of the statement");
+        } else if (strstr(message, "Expect expression")) {
+            strcpy(suggestion, "Provide a valid expression (number, variable, function call, etc.)");
+        } else if (strstr(message, "Expect variable name")) {
+            strcpy(suggestion, "Use a valid identifier (letters, digits, underscore, starting with letter)");
+        } else if (strstr(message, "Expect type annotation")) {
+            strcpy(suggestion, "Specify the type after colon (e.g., ': int', ': bool')");
+        } else if (strstr(message, "Expect function declaration")) {
+            strcpy(suggestion, "Start with 'func' keyword followed by function name and parameters");
+        } else if (strstr(message, "Expect array size")) {
+            strcpy(suggestion, "Provide a numeric size for the array (e.g., '[5]')");
+        }
+        
+        error_context_add_error(parser->error_context, ERROR_PARSER, SEVERITY_ERROR, 
+                              message, suggestion[0] != '\0' ? suggestion : NULL, 
+                              parser->current.line, parser->current.column);
+    }
+    
+    // Don't synchronize immediately - let the parser continue to collect more errors
+    // Only synchronize if we're in panic mode
+    if (parser->panic_mode) {
+        parser_synchronize(parser);
+        parser->consecutive_errors = 0;
+    }
 }
 
 Expr* parse_expression(Parser* parser) {
@@ -199,6 +245,8 @@ Expr* parse_call(Parser* parser) {
     while (true) {
         if (parser_match(parser, TOKEN_LPAREN)) {
             expr = finish_call(parser, expr);
+        } else if (parser_match(parser, TOKEN_LBRACKET)) {
+            expr = finish_array_index(parser, expr);
         } else {
             break;
         }
@@ -222,6 +270,14 @@ Expr* finish_call(Parser* parser, Expr* callee) {
     
     parser_consume(parser, TOKEN_RPAREN, "Expect ')' after arguments.");
     return call;
+}
+
+Expr* finish_array_index(Parser* parser, Expr* array) {
+    Expr* index = parse_expression(parser);
+    parser_consume(parser, TOKEN_RBRACKET, "Expect ']' after array index.");
+    
+    Expr* array_index = expr_array_index(array, index, array->line, array->column);
+    return array_index;
 }
 
 Stmt* parse_statement(Parser* parser) {
@@ -254,6 +310,11 @@ Stmt* parse_statement(Parser* parser) {
         result = parse_expression_statement(parser);
     }
     
+    // Reset error counter if parsing succeeded
+    if (result) {
+        parser_reset_error_count(parser);
+    }
+    
     printf("[DEBUG] Exiting parse_statement\n"); fflush(stdout);
     return result;
 }
@@ -273,12 +334,40 @@ Stmt* parse_var_declaration(Parser* parser) {
         parser_error(parser, "Expect type annotation.");
     }
     
+    // Check for array declaration
+    if (parser_match(parser, TOKEN_LBRACKET)) {
+        if (parser_match(parser, TOKEN_NUMBER)) {
+            int size = (int)parser->previous.literal.number_value;
+            parser_consume(parser, TOKEN_RBRACKET, "Expect ']' after array size.");
+            
+            Expr* initializer = NULL;
+            if (parser_match(parser, TOKEN_ASSIGN)) {
+                initializer = parse_expression(parser);
+            }
+            
+            // Try to consume semicolon, but don't fail if missing
+            if (!parser_match(parser, TOKEN_SEMICOLON)) {
+                parser_error(parser, "Expect ';' after array declaration.");
+                // Try to synchronize and continue
+                parser_synchronize(parser);
+            }
+            return stmt_array_decl(name, type, size, initializer, parser->previous.line, parser->previous.column);
+        } else {
+            parser_error(parser, "Expect array size.");
+        }
+    }
+    
     Expr* initializer = NULL;
     if (parser_match(parser, TOKEN_ASSIGN)) {
         initializer = parse_expression(parser);
     }
     
-    parser_consume(parser, TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
+    // Try to consume semicolon, but don't fail if missing
+    if (!parser_match(parser, TOKEN_SEMICOLON)) {
+        parser_error(parser, "Expect ';' after variable declaration.");
+        // Try to synchronize and continue
+        parser_synchronize(parser);
+    }
     
     return stmt_var_decl(name, type, initializer, parser->previous.line, parser->previous.column);
 }
@@ -292,14 +381,32 @@ Stmt* parse_assignment(Parser* parser) {
         if (expr->type == EXPR_VARIABLE) {
             char* name = string_copy(expr->data.variable.name);
             expr_destroy(expr);
-            parser_consume(parser, TOKEN_SEMICOLON, "Expect ';' after assignment.");
+            // Try to consume semicolon, but don't fail if missing
+            if (!parser_match(parser, TOKEN_SEMICOLON)) {
+                parser_error(parser, "Expect ';' after assignment.");
+                parser_synchronize(parser);
+            }
             return stmt_assignment(name, value, parser->previous.line, parser->previous.column);
+        } else if (expr->type == EXPR_ARRAY_INDEX) {
+            // Create array assignment statement
+            Expr* array = expr->data.array_index.array;
+            Expr* index = expr->data.array_index.index;
+            // Try to consume semicolon, but don't fail if missing
+            if (!parser_match(parser, TOKEN_SEMICOLON)) {
+                parser_error(parser, "Expect ';' after assignment.");
+                parser_synchronize(parser);
+            }
+            return stmt_array_assignment(array, index, value, parser->previous.line, parser->previous.column);
         }
         
         parser_error(parser, "Invalid assignment target.");
     }
     
-    parser_consume(parser, TOKEN_SEMICOLON, "Expect ';' after expression.");
+    // Try to consume semicolon, but don't fail if missing
+    if (!parser_match(parser, TOKEN_SEMICOLON)) {
+        parser_error(parser, "Expect ';' after expression.");
+        parser_synchronize(parser);
+    }
     return stmt_expr(expr, expr->line, expr->column);
 }
 
@@ -355,7 +462,11 @@ Stmt* parse_return_statement(Parser* parser) {
         value = parse_expression(parser);
     }
     
-    parser_consume(parser, TOKEN_SEMICOLON, "Expect ';' after return value.");
+    // Try to consume semicolon, but don't fail if missing
+    if (!parser_match(parser, TOKEN_SEMICOLON)) {
+        parser_error(parser, "Expect ';' after return value.");
+        parser_synchronize(parser);
+    }
     return stmt_return(value, parser->previous.line, parser->previous.column);
 }
 
@@ -363,14 +474,22 @@ Stmt* parse_print_statement(Parser* parser) {
     parser_consume(parser, TOKEN_LPAREN, "Expect '(' after 'print'.");
     Expr* value = parse_expression(parser);
     parser_consume(parser, TOKEN_RPAREN, "Expect ')' after print value.");
-    parser_consume(parser, TOKEN_SEMICOLON, "Expect ';' after print statement.");
+    // Try to consume semicolon, but don't fail if missing
+    if (!parser_match(parser, TOKEN_SEMICOLON)) {
+        parser_error(parser, "Expect ';' after print statement.");
+        parser_synchronize(parser);
+    }
     
     return stmt_print_stmt(value, parser->previous.line, parser->previous.column);
 }
 
 Stmt* parse_expression_statement(Parser* parser) {
     Expr* expr = parse_expression(parser);
-    parser_consume(parser, TOKEN_SEMICOLON, "Expect ';' after expression.");
+    // Try to consume semicolon, but don't fail if missing
+    if (!parser_match(parser, TOKEN_SEMICOLON)) {
+        parser_error(parser, "Expect ';' after expression.");
+        parser_synchronize(parser);
+    }
     return stmt_expr(expr, expr->line, expr->column);
 }
 
@@ -391,7 +510,11 @@ Stmt* parse_block(Parser* parser) {
     }
     
     printf("[DEBUG] Exiting block, consuming RBRACE\n"); fflush(stdout);
-    parser_consume(parser, TOKEN_RBRACE, "Expect '}' after block.");
+    // Try to consume closing brace, but don't fail if missing
+    if (!parser_match(parser, TOKEN_RBRACE)) {
+        parser_error(parser, "Expect '}' after block.");
+        parser_synchronize(parser);
+    }
     printf("[DEBUG] Exiting parse_block\n"); fflush(stdout);
     return block;
 }

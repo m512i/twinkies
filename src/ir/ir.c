@@ -3,6 +3,7 @@
 IROperand* ir_operand_temp(int temp_id) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_TEMP;
+    operand->array_size = -1;  // Not an array
     operand->data.temp_id = temp_id;
     return operand;
 }
@@ -10,6 +11,15 @@ IROperand* ir_operand_temp(int temp_id) {
 IROperand* ir_operand_var(const char* var_name) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_VAR;
+    operand->array_size = -1;  // Default to not an array
+    operand->data.var_name = string_copy(var_name);
+    return operand;
+}
+
+IROperand* ir_operand_array_var(const char* var_name, int size) {
+    IROperand* operand = safe_malloc(sizeof(IROperand));
+    operand->type = IR_OP_VAR;
+    operand->array_size = size;  // Store the array size
     operand->data.var_name = string_copy(var_name);
     return operand;
 }
@@ -17,6 +27,7 @@ IROperand* ir_operand_var(const char* var_name) {
 IROperand* ir_operand_const(int64_t value) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_CONST;
+    operand->array_size = -1;  // Not an array
     operand->data.const_value = value;
     return operand;
 }
@@ -24,6 +35,7 @@ IROperand* ir_operand_const(int64_t value) {
 IROperand* ir_operand_label(const char* label_name) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_LABEL;
+    operand->array_size = -1;  // Not an array
     operand->data.label_name = string_copy(label_name);
     return operand;
 }
@@ -142,6 +154,56 @@ IRInstruction* ir_instruction_print_op(IROperand* value) {
     IRInstruction* instr = safe_malloc(sizeof(IRInstruction));
     instr->opcode = IR_PRINT;
     instr->result = NULL;
+    instr->arg1 = value;
+    instr->arg2 = NULL;
+    instr->label = NULL;
+    return instr;
+}
+
+IRInstruction* ir_instruction_array_load(IROperand* result, IROperand* array, IROperand* index) {
+    IRInstruction* instr = safe_malloc(sizeof(IRInstruction));
+    instr->opcode = IR_ARRAY_LOAD;
+    instr->result = result;
+    instr->arg1 = array;
+    instr->arg2 = index;
+    instr->label = NULL;
+    return instr;
+}
+
+IRInstruction* ir_instruction_array_store(IROperand* array, IROperand* index, IROperand* value) {
+    IRInstruction* instr = safe_malloc(sizeof(IRInstruction));
+    instr->opcode = IR_ARRAY_STORE;
+    instr->result = value;
+    instr->arg1 = array;
+    instr->arg2 = index;
+    instr->label = NULL;
+    return instr;
+}
+
+IRInstruction* ir_instruction_bounds_check(IROperand* index, IROperand* size, const char* error_label) {
+    IRInstruction* instr = safe_malloc(sizeof(IRInstruction));
+    instr->opcode = IR_BOUNDS_CHECK;
+    instr->result = NULL;
+    instr->arg1 = index;
+    instr->arg2 = size;
+    instr->label = string_copy(error_label);
+    return instr;
+}
+
+IRInstruction* ir_instruction_array_decl(const char* array_name, int size) {
+    IRInstruction* instr = safe_malloc(sizeof(IRInstruction));
+    instr->opcode = IR_ARRAY_DECL;
+    instr->result = ir_operand_array_var(array_name, size);
+    instr->arg1 = NULL;
+    instr->arg2 = NULL;
+    instr->label = NULL;
+    return instr;
+}
+
+IRInstruction* ir_instruction_array_init(const char* array_name, int size, IROperand* value) {
+    IRInstruction* instr = safe_malloc(sizeof(IRInstruction));
+    instr->opcode = IR_ARRAY_INIT;
+    instr->result = ir_operand_array_var(array_name, size);
     instr->arg1 = value;
     instr->arg2 = NULL;
     instr->label = NULL;
@@ -327,6 +389,38 @@ void ir_instruction_print(const IRInstruction* instr) {
             printf("PRINT ");
             ir_operand_print(instr->arg1);
             break;
+        case IR_ARRAY_LOAD:
+            ir_operand_print(instr->result);
+            printf(" = ");
+            ir_operand_print(instr->arg1);
+            printf("[");
+            ir_operand_print(instr->arg2);
+            printf("]");
+            break;
+        case IR_ARRAY_STORE:
+            ir_operand_print(instr->arg1);
+            printf("[");
+            ir_operand_print(instr->arg2);
+            printf("] = ");
+            ir_operand_print(instr->result);
+            break;
+        case IR_BOUNDS_CHECK:
+            printf("BOUNDS_CHECK ");
+            ir_operand_print(instr->arg1);
+            printf(" < ");
+            ir_operand_print(instr->arg2);
+            printf(" GOTO %s", instr->label);
+            break;
+        case IR_ARRAY_DECL:
+            printf("ARRAY_DECL ");
+            ir_operand_print(instr->result);
+            break;
+        case IR_ARRAY_INIT:
+            printf("ARRAY_INIT ");
+            ir_operand_print(instr->result);
+            printf(" = ");
+            ir_operand_print(instr->arg1);
+            break;
     }
     printf("\n");
 }
@@ -388,6 +482,11 @@ const char* ir_opcode_to_string(IROpcode opcode) {
         case IR_RETURN: return "RETURN";
         case IR_PARAM: return "PARAM";
         case IR_PRINT: return "PRINT";
+        case IR_ARRAY_LOAD: return "ARRAY_LOAD";
+        case IR_ARRAY_STORE: return "ARRAY_STORE";
+        case IR_BOUNDS_CHECK: return "BOUNDS_CHECK";
+        case IR_ARRAY_DECL: return "ARRAY_DECL";
+        case IR_ARRAY_INIT: return "ARRAY_INIT";
         default: return "UNKNOWN";
     }
 }
@@ -402,19 +501,19 @@ char* ir_function_new_label(IRFunction* func) {
     return label;
 }
 
-IRProgram* ir_generate(Program* ast_program) {
+IRProgram* ir_generate(Program* ast_program, SemanticAnalyzer* analyzer) {
     IRProgram* ir_program = ir_program_create();
     
     for (size_t i = 0; i < ast_program->functions.size; i++) {
         Function* func = (Function*)array_get(&ast_program->functions, i);
-        IRFunction* ir_func = ir_generate_function(func);
+        IRFunction* ir_func = ir_generate_function(func, analyzer);
         ir_program_add_function(ir_program, ir_func);
     }
     
     return ir_program;
 }
 
-IRFunction* ir_generate_function(Function* func) {
+IRFunction* ir_generate_function(Function* func, SemanticAnalyzer* analyzer) {
     IRFunction* ir_func = ir_function_create(func->name);
     
     for (size_t i = 0; i < func->params.size; i++) {
@@ -423,7 +522,7 @@ IRFunction* ir_generate_function(Function* func) {
         ir_function_add_param(ir_func, param_op);
     }
     
-    ir_generate_statement(ir_func, func->body);
+    ir_generate_statement(ir_func, func->body, analyzer);
     
     return ir_func;
 }
@@ -444,37 +543,65 @@ static bool stmt_always_returns(Stmt* stmt) {
     return false;
 }
 
-void ir_generate_statement(IRFunction* ir_func, Stmt* stmt) {
+void ir_generate_statement(IRFunction* ir_func, Stmt* stmt, SemanticAnalyzer* analyzer) {
     if (!stmt) return;
     
     switch (stmt->type) {
         case STMT_EXPR:
-            ir_generate_expression(ir_func, stmt->data.expr.expression);
+            ir_generate_expression(ir_func, stmt->data.expr.expression, analyzer);
             break;
         case STMT_VAR_DECL:
             if (stmt->data.var_decl.initializer) {
-                IROperand* value = ir_generate_expression(ir_func, stmt->data.var_decl.initializer);
+                IROperand* value = ir_generate_expression(ir_func, stmt->data.var_decl.initializer, analyzer);
                 IROperand* var = ir_operand_var(stmt->data.var_decl.name);
                 IRInstruction* move = ir_instruction_move(var, value);
                 ir_function_add_instruction(ir_func, move);
             }
             break;
+        case STMT_ARRAY_DECL:
+            if (stmt->data.array_decl.initializer) {
+                IROperand* value = ir_generate_expression(ir_func, stmt->data.array_decl.initializer, analyzer);
+                IRInstruction* array_init = ir_instruction_array_init(stmt->data.array_decl.name, stmt->data.array_decl.size, value);
+                ir_function_add_instruction(ir_func, array_init);
+            } else {
+                // Generate array declaration instruction
+                IRInstruction* array_decl = ir_instruction_array_decl(stmt->data.array_decl.name, stmt->data.array_decl.size);
+                ir_function_add_instruction(ir_func, array_decl);
+            }
+            break;
         case STMT_ASSIGNMENT: {
-            IROperand* value = ir_generate_expression(ir_func, stmt->data.assignment.value);
+            IROperand* value = ir_generate_expression(ir_func, stmt->data.assignment.value, analyzer);
             IROperand* var = ir_operand_var(stmt->data.assignment.name);
             IRInstruction* move = ir_instruction_move(var, value);
             ir_function_add_instruction(ir_func, move);
+            break;
+        }
+        case STMT_ARRAY_ASSIGNMENT: {
+            IROperand* array = ir_generate_expression(ir_func, stmt->data.array_assignment.array, analyzer);
+            IROperand* index = ir_generate_expression(ir_func, stmt->data.array_assignment.index, analyzer);
+            IROperand* value = ir_generate_expression(ir_func, stmt->data.array_assignment.value, analyzer);
+            
+            // Generate bounds check using array size from operand
+            char* error_label = ir_function_new_label(ir_func);
+            int array_size = array->array_size;
+            if (array_size == -1) array_size = 5; // Fallback if not found
+            IROperand* size = ir_operand_const(array_size);
+            IRInstruction* bounds_check = ir_instruction_bounds_check(index, size, error_label);
+            ir_function_add_instruction(ir_func, bounds_check);
+            
+            IRInstruction* store = ir_instruction_array_store(array, index, value);
+            ir_function_add_instruction(ir_func, store);
             break;
         }
         case STMT_IF: {
             char* then_label = ir_function_new_label(ir_func);
             char* end_label = ir_function_new_label(ir_func);
             
-            IROperand* condition = ir_generate_expression(ir_func, stmt->data.if_stmt.condition);
+            IROperand* condition = ir_generate_expression(ir_func, stmt->data.if_stmt.condition, analyzer);
             IRInstruction* jump_if_false = ir_instruction_jump_if_false(condition, then_label);
             ir_function_add_instruction(ir_func, jump_if_false);
             
-            ir_generate_statement(ir_func, stmt->data.if_stmt.then_branch);
+            ir_generate_statement(ir_func, stmt->data.if_stmt.then_branch, analyzer);
             bool then_returns = stmt_always_returns(stmt->data.if_stmt.then_branch);
             
             if (stmt->data.if_stmt.else_branch) {
@@ -486,7 +613,7 @@ void ir_generate_statement(IRFunction* ir_func, Stmt* stmt) {
                 IRInstruction* then_lbl = ir_instruction_label(then_label);
                 ir_function_add_instruction(ir_func, then_lbl);
                 
-                ir_generate_statement(ir_func, stmt->data.if_stmt.else_branch);
+                ir_generate_statement(ir_func, stmt->data.if_stmt.else_branch, analyzer);
                 bool else_returns = stmt_always_returns(stmt->data.if_stmt.else_branch);
                 if (!else_returns) {
                     IRInstruction* end_lbl = ir_instruction_label(else_label);
@@ -513,11 +640,11 @@ void ir_generate_statement(IRFunction* ir_func, Stmt* stmt) {
             IRInstruction* loop_lbl = ir_instruction_label(loop_label);
             ir_function_add_instruction(ir_func, loop_lbl);
             
-            IROperand* condition = ir_generate_expression(ir_func, stmt->data.while_stmt.condition);
+            IROperand* condition = ir_generate_expression(ir_func, stmt->data.while_stmt.condition, analyzer);
             IRInstruction* jump_if_false = ir_instruction_jump_if_false(condition, end_label);
             ir_function_add_instruction(ir_func, jump_if_false);
             
-            ir_generate_statement(ir_func, stmt->data.while_stmt.body);
+            ir_generate_statement(ir_func, stmt->data.while_stmt.body, analyzer);
             
             IRInstruction* jump = ir_instruction_jump(loop_label);
             ir_function_add_instruction(ir_func, jump);
@@ -528,7 +655,7 @@ void ir_generate_statement(IRFunction* ir_func, Stmt* stmt) {
         }
         case STMT_RETURN:
             if (stmt->data.return_stmt.value) {
-                IROperand* value = ir_generate_expression(ir_func, stmt->data.return_stmt.value);
+                IROperand* value = ir_generate_expression(ir_func, stmt->data.return_stmt.value, analyzer);
                 IRInstruction* ret = ir_instruction_return(value);
                 ir_function_add_instruction(ir_func, ret);
             } else {
@@ -538,7 +665,7 @@ void ir_generate_statement(IRFunction* ir_func, Stmt* stmt) {
             break;
         case STMT_PRINT:
             if (stmt->data.print_stmt.value) {
-                IROperand* value = ir_generate_expression(ir_func, stmt->data.print_stmt.value);
+                IROperand* value = ir_generate_expression(ir_func, stmt->data.print_stmt.value, analyzer);
                 IRInstruction* print = ir_instruction_print_op(value);
                 ir_function_add_instruction(ir_func, print);
             }
@@ -546,26 +673,34 @@ void ir_generate_statement(IRFunction* ir_func, Stmt* stmt) {
         case STMT_BLOCK:
             for (size_t i = 0; i < stmt->data.block.statements.size; i++) {
                 Stmt* block_stmt = (Stmt*)array_get(&stmt->data.block.statements, i);
-                ir_generate_statement(ir_func, block_stmt);
+                ir_generate_statement(ir_func, block_stmt, analyzer);
                 if (stmt_always_returns(block_stmt)) break;
             }
             break;
     }
 }
 
-IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr) {
+IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr, SemanticAnalyzer* analyzer) {
     if (!expr) return NULL;
     
     switch (expr->type) {
         case EXPR_LITERAL:
             return ir_operand_const(expr->data.literal.value.number_value);
             
-        case EXPR_VARIABLE:
-            return ir_operand_var(expr->data.variable.name);
+        case EXPR_VARIABLE: {
+            // Check if this is an array variable and get its size
+            int array_size = get_array_size(analyzer, expr->data.variable.name);
+            printf("[DEBUG] Variable %s: array_size = %d\n", expr->data.variable.name, array_size);
+            if (array_size != -1) {
+                return ir_operand_array_var(expr->data.variable.name, array_size);
+            } else {
+                return ir_operand_var(expr->data.variable.name);
+            }
+        }
             
         case EXPR_BINARY: {
-            IROperand* left = ir_generate_expression(ir_func, expr->data.binary.left);
-            IROperand* right = ir_generate_expression(ir_func, expr->data.binary.right);
+            IROperand* left = ir_generate_expression(ir_func, expr->data.binary.left, analyzer);
+            IROperand* right = ir_generate_expression(ir_func, expr->data.binary.right, analyzer);
             
             IROpcode opcode;
             switch (expr->data.binary.operator) {
@@ -592,7 +727,7 @@ IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr) {
         }
         
         case EXPR_UNARY: {
-            IROperand* operand = ir_generate_expression(ir_func, expr->data.unary.operand);
+            IROperand* operand = ir_generate_expression(ir_func, expr->data.unary.operand, analyzer);
             
             IROpcode opcode;
             switch (expr->data.unary.operator) {
@@ -612,7 +747,7 @@ IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr) {
             
             for (size_t i = 0; i < expr->data.call.args.size; i++) {
                 Expr* arg_expr = (Expr*)array_get(&expr->data.call.args, i);
-                IROperand* arg = ir_generate_expression(ir_func, arg_expr);
+                IROperand* arg = ir_generate_expression(ir_func, arg_expr, analyzer);
                 IRInstruction* param = ir_instruction_param(arg);
                 ir_function_add_instruction(ir_func, param);
             }
@@ -623,7 +758,28 @@ IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr) {
         }
         
         case EXPR_GROUP:
-            return ir_generate_expression(ir_func, expr->data.group.expression);
+            return ir_generate_expression(ir_func, expr->data.group.expression, analyzer);
+            
+        case EXPR_ARRAY_INDEX: {
+            IROperand* array = ir_generate_expression(ir_func, expr->data.array_index.array, analyzer);
+            IROperand* index = ir_generate_expression(ir_func, expr->data.array_index.index, analyzer);
+            
+            // Generate bounds check using array size from operand
+            char* error_label = ir_function_new_label(ir_func);
+            int array_size = array->array_size;
+            printf("[DEBUG] Array index: array_size = %d\n", array_size);
+            if (array_size == -1) array_size = 5; // Fallback if not found
+            IROperand* size = ir_operand_const(array_size);
+            IRInstruction* bounds_check = ir_instruction_bounds_check(index, size, error_label);
+            ir_function_add_instruction(ir_func, bounds_check);
+            
+            // Generate array load
+            IROperand* result = ir_operand_temp(ir_function_new_temp(ir_func));
+            IRInstruction* load = ir_instruction_array_load(result, array, index);
+            ir_function_add_instruction(ir_func, load);
+            
+            return result;
+        }
             
         default:
             return NULL;

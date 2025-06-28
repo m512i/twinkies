@@ -238,6 +238,15 @@ void codegenasm_generate_instruction(CodeGenerator* generator, IRInstruction* in
         case IR_PRINT:
             codegenasm_print(generator, instr->arg1);
             break;
+        case IR_ARRAY_LOAD:
+            codegenasm_array_load(generator, instr->result, instr->arg1, instr->arg2);
+            break;
+        case IR_ARRAY_STORE:
+            codegenasm_array_store(generator, instr->arg1, instr->arg2, instr->result);
+            break;
+        case IR_BOUNDS_CHECK:
+            codegenasm_bounds_check(generator, instr->arg1, instr->arg2, instr->label);
+            break;
     }
 }
 
@@ -660,4 +669,66 @@ void codegenasm_error(CodeGenerator* generator, const char* message) {
     if (generator->error) {
         error_set(generator->error, ERROR_CODEGEN, message, 0, 0);
     }
+}
+
+void codegenasm_array_load(CodeGenerator* generator, IROperand* result, IROperand* array, IROperand* index) {
+    char* array_name = codegenasm_get_operand_name(generator, array);
+    char* index_name = codegenasm_get_operand_name(generator, index);
+    char* result_name = codegenasm_get_operand_name(generator, result);
+    
+    fprintf(generator->output_file, "    lea rax, [rel %s]\n", array_name);
+    if (is_param_register(index_name)) {
+        fprintf(generator->output_file, "    mov rcx, %s\n", index_name);
+    } else {
+        fprintf(generator->output_file, "    mov rcx, qword [rel %s]\n", index_name);
+    }
+    
+    fprintf(generator->output_file, "    imul rcx, 8\n");
+    fprintf(generator->output_file, "    add rax, rcx\n");
+    fprintf(generator->output_file, "    mov rax, qword [rax]\n");
+    fprintf(generator->output_file, "    mov qword [rel %s], rax\n", result_name);
+}
+
+void codegenasm_array_store(CodeGenerator* generator, IROperand* array, IROperand* index, IROperand* value) {
+    char* array_name = codegenasm_get_operand_name(generator, array);
+    char* index_name = codegenasm_get_operand_name(generator, index);
+    char* value_name = codegenasm_get_operand_name(generator, value);
+    
+    fprintf(generator->output_file, "    lea rax, [rel %s]\n", array_name);
+    if (is_param_register(index_name)) {
+        fprintf(generator->output_file, "    mov rcx, %s\n", index_name);
+    } else {
+        fprintf(generator->output_file, "    mov rcx, qword [rel %s]\n", index_name);
+    }
+    
+    fprintf(generator->output_file, "    imul rcx, 8\n");
+    fprintf(generator->output_file, "    add rax, rcx\n");
+    
+    if (is_param_register(value_name)) {
+        fprintf(generator->output_file, "    mov rcx, %s\n", value_name);
+    } else {
+        fprintf(generator->output_file, "    mov rcx, qword [rel %s]\n", value_name);
+    }
+    
+    fprintf(generator->output_file, "    mov qword [rax], rcx\n");
+}
+
+void codegenasm_bounds_check(CodeGenerator* generator, IROperand* index, IROperand* size, const char* error_label) {
+    char* index_name = codegenasm_get_operand_name(generator, index);
+    char* size_name = codegenasm_get_operand_name(generator, size);
+    
+    if (is_param_register(index_name)) {
+        fprintf(generator->output_file, "    mov rax, %s\n", index_name);
+    } else {
+        fprintf(generator->output_file, "    mov rax, qword [rel %s]\n", index_name);
+    }
+    
+    if (is_param_register(size_name)) {
+        fprintf(generator->output_file, "    mov rcx, %s\n", size_name);
+    } else {
+        fprintf(generator->output_file, "    mov rcx, qword [rel %s]\n", size_name);
+    }
+    
+    fprintf(generator->output_file, "    cmp rax, rcx\n");
+    fprintf(generator->output_file, "    jge %s_%s\n", generator->current_function_name, error_label);
 } 

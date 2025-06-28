@@ -18,6 +18,34 @@ bool has_tl_extension(const char* filename) {
     return (strcmp(filename + len - 3, ".tl") == 0);
 }
 
+bool has_c_extension(const char* filename) {
+    if (!filename) return false;
+    
+    size_t len = strlen(filename);
+    if (len < 2) return false;
+    
+    return (strcmp(filename + len - 2, ".c") == 0);
+}
+
+bool has_asm_extension(const char* filename) {
+    if (!filename) return false;
+    
+    size_t len = strlen(filename);
+    if (len < 2) return false;
+    
+    // Check for .s extension
+    if (len >= 2 && strcmp(filename + len - 2, ".s") == 0) {
+        return true;
+    }
+    
+    // Check for .asm extension
+    if (len >= 4 && strcmp(filename + len - 4, ".asm") == 0) {
+        return true;
+    }
+    
+    return false;
+}
+
 void print_usage(const char* program_name) {
     printf("Usage: %s <input_file> -o <output_file>\n", program_name);
     printf("       %s <input_file> -o <output_file> --asm\n", program_name);
@@ -109,9 +137,12 @@ void print_ast(const char* source, const char* filename) {
         return;
     }
     
-    Parser* parser = parser_create(lexer, &error);
+    // Create error context for parser
+    ErrorContext* error_context = error_context_create(filename, source);
+    Parser* parser = parser_create(lexer, error_context);
     if (error.type != ERROR_NONE) {
         error_print(&error, filename);
+        error_context_destroy(error_context);
         parser_destroy(parser);
         lexer_destroy(lexer);
         fflush(stdout);
@@ -122,6 +153,7 @@ void print_ast(const char* source, const char* filename) {
     if (error.type != ERROR_NONE) {
         error_print(&error, filename);
         program_destroy(program);
+        error_context_destroy(error_context);
         parser_destroy(parser);
         lexer_destroy(lexer);
         fflush(stdout);
@@ -135,6 +167,7 @@ void print_ast(const char* source, const char* filename) {
     fflush(stdout);
     
     program_destroy(program);
+    error_context_destroy(error_context);
     parser_destroy(parser);
     lexer_destroy(lexer);
     printf("[DEBUG] Exiting print_ast\n"); fflush(stdout);
@@ -153,9 +186,12 @@ void print_ir(const char* source, const char* filename) {
         return;
     }
     
-    Parser* parser = parser_create(lexer, &error);
+    // Create error context for parser
+    ErrorContext* error_context = error_context_create(filename, source);
+    Parser* parser = parser_create(lexer, error_context);
     if (error.type != ERROR_NONE) {
         error_print(&error, filename);
+        error_context_destroy(error_context);
         parser_destroy(parser);
         lexer_destroy(lexer);
         fflush(stdout);
@@ -166,17 +202,19 @@ void print_ir(const char* source, const char* filename) {
     if (error.type != ERROR_NONE) {
         error_print(&error, filename);
         program_destroy(program);
+        error_context_destroy(error_context);
         parser_destroy(parser);
         lexer_destroy(lexer);
         fflush(stdout);
         return;
     }
     
-    SemanticAnalyzer* analyzer = semantic_create(program, &error);
+    SemanticAnalyzer* analyzer = semantic_create(program, error_context);
     if (error.type != ERROR_NONE) {
         error_print(&error, filename);
         semantic_destroy(analyzer);
         program_destroy(program);
+        error_context_destroy(error_context);
         parser_destroy(parser);
         lexer_destroy(lexer);
         fflush(stdout);
@@ -184,20 +222,22 @@ void print_ir(const char* source, const char* filename) {
     }
     
     if (!semantic_analyze(analyzer)) {
-        error_print(&error, filename);
+        // Semantic errors are already added to error_context by the analyzer
         semantic_destroy(analyzer);
         program_destroy(program);
+        error_context_destroy(error_context);
         parser_destroy(parser);
         lexer_destroy(lexer);
         fflush(stdout);
         return;
     }
     
-    IRProgram* ir_program = ir_generate(program);
+    IRProgram* ir_program = ir_generate(program, analyzer);
     if (!ir_program) {
         print_error("compiler", "failed to generate IR");
         semantic_destroy(analyzer);
         program_destroy(program);
+        error_context_destroy(error_context);
         parser_destroy(parser);
         lexer_destroy(lexer);
         fflush(stdout);
@@ -213,6 +253,7 @@ void print_ir(const char* source, const char* filename) {
     ir_program_destroy(ir_program);
     semantic_destroy(analyzer);
     program_destroy(program);
+    error_context_destroy(error_context);
     parser_destroy(parser);
     lexer_destroy(lexer);
     printf("[DEBUG] Exiting print_ir\n"); fflush(stdout);
@@ -243,87 +284,116 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
         return false;
     }
     
+    // Create error context for collecting multiple errors
+    ErrorContext* error_context = error_context_create(input_filename, source);
     Error error;
     error_init(&error);
     
+    // Lexical Analysis
     Lexer* lexer = lexer_create(source, &error);
     if (error.type != ERROR_NONE) {
-        error_print(&error, input_filename);
+        error_context_add_error(error_context, error.type, SEVERITY_ERROR, 
+                              error.message, error.suggestion, error.line, error.column);
+        error_init(&error);
+    }
+    
+    // Parsing
+    Parser* parser = NULL;
+    Program* program = NULL;
+    if (lexer) {
+        parser = parser_create(lexer, error_context);
+        if (error.type != ERROR_NONE) {
+            error_context_add_error(error_context, error.type, SEVERITY_ERROR, 
+                                  error.message, error.suggestion, error.line, error.column);
+            error_init(&error);
+        } else {
+            program = parser_parse(parser);
+            
+            if (error.type != ERROR_NONE) {
+                error_context_add_error(error_context, error.type, SEVERITY_ERROR, 
+                                      error.message, error.suggestion, error.line, error.column);
+                error_init(&error);
+            }
+        }
+    }
+    
+    // Semantic Analysis - continue even if parsing had errors
+    SemanticAnalyzer* analyzer = NULL;
+    if (program) {  // Only do semantic analysis if we have a program (even with parse errors)
+        analyzer = semantic_create(program, error_context);
+        if (error.type != ERROR_NONE) {
+            error_context_add_error(error_context, error.type, SEVERITY_ERROR, 
+                                  error.message, error.suggestion, error.line, error.column);
+            error_init(&error);
+        } else {
+            if (!semantic_analyze(analyzer)) {
+                // Semantic errors are already added to error_context by the analyzer
+            }
+        }
+    }
+    
+    // If we have errors, print them all and stop
+    if (error_context_has_errors(error_context)) {
+        error_context_print_all(error_context);
+        error_context_destroy(error_context);
+        if (analyzer) semantic_destroy(analyzer);
+        if (program) program_destroy(program);
+        if (parser) parser_destroy(parser);
+        if (lexer) lexer_destroy(lexer);
         safe_free(source);
-        printf("[DEBUG] Lexer error\n"); fflush(stdout);
         return false;
     }
     
-    Parser* parser = parser_create(lexer, &error);
-    if (error.type != ERROR_NONE) {
-        error_print(&error, input_filename);
-        parser_destroy(parser);
-        lexer_destroy(lexer);
+    // Print warnings if any, but continue compilation
+    if (error_context->count > 0) {
+        error_context_print_all(error_context);
+        // Clear warnings after printing them
+        error_context->count = 0;
+    }
+    
+    // Code Generation
+    IRProgram* ir_program = NULL;
+    if (analyzer && program) {
+        ir_program = ir_generate(program, analyzer);
+        if (!ir_program) {
+            error_context_add_error(error_context, ERROR_CODEGEN, SEVERITY_ERROR, 
+                                  "Failed to generate intermediate representation", 
+                                  "Check for unsupported language constructs", 0, 0);
+        }
+    }
+    
+    if (error_context->count > 0) {
+        error_context_print_all(error_context);
+        error_context_destroy(error_context);
+        if (ir_program) ir_program_destroy(ir_program);
+        if (analyzer) semantic_destroy(analyzer);
+        if (program) program_destroy(program);
+        if (parser) parser_destroy(parser);
+        if (lexer) lexer_destroy(lexer);
         safe_free(source);
-        printf("[DEBUG] Parser error\n"); fflush(stdout);
         return false;
     }
     
-    Program* program = parser_parse(parser);
-    if (error.type != ERROR_NONE) {
-        error_print(&error, input_filename);
-        program_destroy(program);
-        parser_destroy(parser);
-        lexer_destroy(lexer);
-        safe_free(source);
-        printf("[DEBUG] Program parse error\n"); fflush(stdout);
-        return false;
-    }
-    
-    SemanticAnalyzer* analyzer = semantic_create(program, &error);
-    if (error.type != ERROR_NONE) {
-        error_print(&error, input_filename);
-        semantic_destroy(analyzer);
-        program_destroy(program);
-        parser_destroy(parser);
-        lexer_destroy(lexer);
-        safe_free(source);
-        printf("[DEBUG] Semantic analyzer error\n"); fflush(stdout);
-        return false;
-    }
-    
-    if (!semantic_analyze(analyzer)) {
-        error_print(&error, input_filename);
-        semantic_destroy(analyzer);
-        program_destroy(program);
-        parser_destroy(parser);
-        lexer_destroy(lexer);
-        safe_free(source);
-        printf("[DEBUG] Semantic analyze failed\n"); fflush(stdout);
-        return false;
-    }
-    
-    IRProgram* ir_program = ir_generate(program);
-    if (!ir_program) {
-        print_error("compiler", "failed to generate IR");
-        semantic_destroy(analyzer);
-        program_destroy(program);
-        parser_destroy(parser);
-        lexer_destroy(lexer);
-        fflush(stdout);
-        return false;
-    }
-    
+    // Output Generation
     FILE* output_file = fopen(output_filename, "w");
     if (!output_file) {
-        print_error("compiler", "cannot create output file");
-        fprintf(stderr, "  %s\n", output_filename);
-        ir_program_destroy(ir_program);
-        semantic_destroy(analyzer);
-        program_destroy(program);
-        parser_destroy(parser);
-        lexer_destroy(lexer);
+        error_context_add_error(error_context, ERROR_CODEGEN, SEVERITY_ERROR, 
+                              "Cannot create output file", 
+                              "Check file permissions and disk space", 0, 0);
+        error_context_print_all(error_context);
+        error_context_destroy(error_context);
+        if (ir_program) ir_program_destroy(ir_program);
+        if (analyzer) semantic_destroy(analyzer);
+        if (program) program_destroy(program);
+        if (parser) parser_destroy(parser);
+        if (lexer) lexer_destroy(lexer);
         safe_free(source);
-        printf("[DEBUG] Output file creation failed\n"); fflush(stdout);
         return false;
     }
     
-    CodeGenerator* generator;
+    CodeGenerator* generator = NULL;
+    bool success = false;
+    
     if (assembly_output) {
         generator = codegenasm_create(ir_program, output_file, &error);
     } else {
@@ -331,52 +401,59 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
     }
     
     if (error.type != ERROR_NONE) {
-        error_print(&error, input_filename);
+        error_context_add_error(error_context, error.type, SEVERITY_ERROR, 
+                              error.message, error.suggestion, error.line, error.column);
+    } else if (generator) {
+        if (assembly_output) {
+            success = codegenasm_generate(generator);
+        } else {
+            success = codegen_generate(generator);
+        }
+        
+        if (!success) {
+            error_context_add_error(error_context, ERROR_CODEGEN, SEVERITY_ERROR, 
+                                  "Code generation failed", 
+                                  "Check for unsupported language constructs", 0, 0);
+        }
+    }
+    
+    // Cleanup
+    if (generator) {
         if (assembly_output) {
             codegenasm_destroy(generator);
         } else {
             codegen_destroy(generator);
         }
-        fclose(output_file);
-        ir_program_destroy(ir_program);
-        semantic_destroy(analyzer);
-        program_destroy(program);
-        parser_destroy(parser);
-        lexer_destroy(lexer);
+    }
+    fclose(output_file);
+    
+    if (error_context->count > 0) {
+        error_context_print_all(error_context);
+        error_context_destroy(error_context);
+        if (ir_program) ir_program_destroy(ir_program);
+        if (analyzer) semantic_destroy(analyzer);
+        if (program) program_destroy(program);
+        if (parser) parser_destroy(parser);
+        if (lexer) lexer_destroy(lexer);
         safe_free(source);
-        printf("[DEBUG] Codegen error\n"); fflush(stdout);
         return false;
     }
     
-    bool success;
-    if (assembly_output) {
-        success = codegenasm_generate(generator);
-    } else {
-        success = codegen_generate(generator);
-    }
-    printf("[DEBUG] Codegen_generate returned %d\n", success); fflush(stdout);
-    
-    if (assembly_output) {
-        codegenasm_destroy(generator);
-    } else {
-        codegen_destroy(generator);
-    }
-    fclose(output_file);
-    ir_program_destroy(ir_program);
-    semantic_destroy(analyzer);
-    program_destroy(program);
-    parser_destroy(parser);
-    lexer_destroy(lexer);
+    // Success
+    error_context_destroy(error_context);
+    if (ir_program) ir_program_destroy(ir_program);
+    if (analyzer) semantic_destroy(analyzer);
+    if (program) program_destroy(program);
+    if (parser) parser_destroy(parser);
+    if (lexer) lexer_destroy(lexer);
     safe_free(source);
     
-    if (success) {
-        const char* output_type = assembly_output ? "assembly" : "C";
-        printf("Successfully compiled '%s' to '%s' (%s)\n", input_filename, output_filename, output_type);
-        fflush(stdout);
-    }
+    const char* output_type = assembly_output ? "assembly" : "C";
+    printf("Successfully compiled '%s' to '%s' (%s)\n", input_filename, output_filename, output_type);
+    fflush(stdout);
     
     printf("[DEBUG] Exiting compile_file\n"); fflush(stdout);
-    return success;
+    return true;
 }
 
 int main(int argc, char* argv[]) {
@@ -472,6 +549,27 @@ int main(int argc, char* argv[]) {
             print_usage(argv[0]);
             safe_free(source);
             return 1;
+        }
+        
+        // Validate output file extension based on output type
+        if (assembly_output) {
+            if (!has_asm_extension(output_filename)) {
+                print_error(argv[0], "assembly output requires .s or .asm extension");
+                fprintf(stderr, "  %s\n", output_filename);
+                fprintf(stderr, "  Use: %s %s -o %s.s --asm\n", argv[0], input_filename, 
+                        output_filename[0] == '-' ? "output" : output_filename);
+                safe_free(source);
+                return 1;
+            }
+        } else {
+            if (!has_c_extension(output_filename)) {
+                print_error(argv[0], "C output requires .c extension");
+                fprintf(stderr, "  %s\n", output_filename);
+                fprintf(stderr, "  Use: %s %s -o %s.c\n", argv[0], input_filename, 
+                        output_filename[0] == '-' ? "output" : output_filename);
+                safe_free(source);
+                return 1;
+            }
         }
         
         if (!compile_file(input_filename, output_filename, verbose_flag, assembly_output)) {

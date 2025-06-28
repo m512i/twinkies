@@ -69,6 +69,16 @@ Expr* expr_group(Expr* expression, int line, int column) {
     return expr;
 }
 
+Expr* expr_array_index(Expr* array, Expr* index, int line, int column) {
+    Expr* expr = safe_malloc(sizeof(Expr));
+    expr->type = EXPR_ARRAY_INDEX;
+    expr->line = line;
+    expr->column = column;
+    expr->data.array_index.array = array;
+    expr->data.array_index.index = index;
+    return expr;
+}
+
 Stmt* stmt_expr(Expr* expression, int line, int column) {
     Stmt* stmt = safe_malloc(sizeof(Stmt));
     stmt->type = STMT_EXPR;
@@ -89,6 +99,18 @@ Stmt* stmt_var_decl(const char* name, DataType type, Expr* initializer, int line
     return stmt;
 }
 
+Stmt* stmt_array_decl(const char* name, DataType element_type, int size, Expr* initializer, int line, int column) {
+    Stmt* stmt = safe_malloc(sizeof(Stmt));
+    stmt->type = STMT_ARRAY_DECL;
+    stmt->line = line;
+    stmt->column = column;
+    stmt->data.array_decl.name = string_copy(name);
+    stmt->data.array_decl.element_type = element_type;
+    stmt->data.array_decl.size = size;
+    stmt->data.array_decl.initializer = initializer;
+    return stmt;
+}
+
 Stmt* stmt_assignment(const char* name, Expr* value, int line, int column) {
     Stmt* stmt = safe_malloc(sizeof(Stmt));
     stmt->type = STMT_ASSIGNMENT;
@@ -96,6 +118,17 @@ Stmt* stmt_assignment(const char* name, Expr* value, int line, int column) {
     stmt->column = column;
     stmt->data.assignment.name = string_copy(name);
     stmt->data.assignment.value = value;
+    return stmt;
+}
+
+Stmt* stmt_array_assignment(Expr* array, Expr* index, Expr* value, int line, int column) {
+    Stmt* stmt = safe_malloc(sizeof(Stmt));
+    stmt->type = STMT_ARRAY_ASSIGNMENT;
+    stmt->line = line;
+    stmt->column = column;
+    stmt->data.array_assignment.array = array;
+    stmt->data.array_assignment.index = index;
+    stmt->data.array_assignment.value = value;
     return stmt;
 }
 
@@ -209,6 +242,10 @@ void expr_destroy(Expr* expr) {
         case EXPR_GROUP:
             expr_destroy(expr->data.group.expression);
             break;
+        case EXPR_ARRAY_INDEX:
+            expr_destroy(expr->data.array_index.array);
+            expr_destroy(expr->data.array_index.index);
+            break;
         default:
             break;
     }
@@ -226,9 +263,18 @@ void stmt_destroy(Stmt* stmt) {
             safe_free(stmt->data.var_decl.name);
             expr_destroy(stmt->data.var_decl.initializer);
             break;
+        case STMT_ARRAY_DECL:
+            safe_free(stmt->data.array_decl.name);
+            expr_destroy(stmt->data.array_decl.initializer);
+            break;
         case STMT_ASSIGNMENT:
             safe_free(stmt->data.assignment.name);
             expr_destroy(stmt->data.assignment.value);
+            break;
+        case STMT_ARRAY_ASSIGNMENT:
+            expr_destroy(stmt->data.array_assignment.array);
+            expr_destroy(stmt->data.array_assignment.index);
+            expr_destroy(stmt->data.array_assignment.value);
             break;
         case STMT_IF:
             expr_destroy(stmt->data.if_stmt.condition);
@@ -320,6 +366,11 @@ void expr_print(const Expr* expr, int indent) {
             printf("Group:\n");
             expr_print(expr->data.group.expression, indent + 1);
             break;
+        case EXPR_ARRAY_INDEX:
+            printf("ArrayIndex:\n");
+            expr_print(expr->data.array_index.array, indent + 1);
+            expr_print(expr->data.array_index.index, indent + 1);
+            break;
     }
     
     printf(")\n");
@@ -343,9 +394,22 @@ void stmt_print(const Stmt* stmt, int indent) {
                 expr_print(stmt->data.var_decl.initializer, indent + 1);
             }
             break;
+        case STMT_ARRAY_DECL:
+            printf("ArrayDecl: %s: %s, size: %d\n", stmt->data.array_decl.name, 
+                   data_type_to_string(stmt->data.array_decl.element_type), stmt->data.array_decl.size);
+            if (stmt->data.array_decl.initializer) {
+                expr_print(stmt->data.array_decl.initializer, indent + 1);
+            }
+            break;
         case STMT_ASSIGNMENT:
             printf("Assignment: %s\n", stmt->data.assignment.name);
             expr_print(stmt->data.assignment.value, indent + 1);
+            break;
+        case STMT_ARRAY_ASSIGNMENT:
+            printf("ArrayAssignment:\n");
+            expr_print(stmt->data.array_assignment.array, indent + 1);
+            expr_print(stmt->data.array_assignment.index, indent + 1);
+            expr_print(stmt->data.array_assignment.value, indent + 1);
             break;
         case STMT_IF:
             printf("If:\n");
@@ -416,6 +480,7 @@ const char* data_type_to_string(DataType type) {
         case TYPE_INT: return "int";
         case TYPE_BOOL: return "bool";
         case TYPE_VOID: return "void";
+        case TYPE_ARRAY: return "array";
         default: return "unknown";
     }
 }

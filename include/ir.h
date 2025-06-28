@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "ast.h"
+#include "semantic.h"
 
 typedef enum {
     IR_NOP,
@@ -29,7 +30,12 @@ typedef enum {
     IR_CALL,
     IR_RETURN,
     IR_PARAM,
-    IR_PRINT
+    IR_PRINT,
+    IR_ARRAY_LOAD,
+    IR_ARRAY_STORE,
+    IR_BOUNDS_CHECK,
+    IR_ARRAY_DECL,
+    IR_ARRAY_INIT
 } IROpcode;
 
 typedef enum {
@@ -41,6 +47,7 @@ typedef enum {
 
 typedef struct {
     IROperandType type;
+    int array_size;  // Size for array variables, -1 for non-arrays
     union {
         int temp_id;
         char* var_name;
@@ -71,6 +78,7 @@ typedef struct {
 
 IROperand* ir_operand_temp(int temp_id);
 IROperand* ir_operand_var(const char* var_name);
+IROperand* ir_operand_array_var(const char* var_name, int size);
 IROperand* ir_operand_const(int64_t value);
 IROperand* ir_operand_label(const char* label_name);
 
@@ -86,14 +94,19 @@ IRInstruction* ir_instruction_call(IROperand* result, const char* func_name);
 IRInstruction* ir_instruction_return(IROperand* value);
 IRInstruction* ir_instruction_param(IROperand* param);
 IRInstruction* ir_instruction_print_op(IROperand* value);
+IRInstruction* ir_instruction_array_load(IROperand* result, IROperand* array, IROperand* index);
+IRInstruction* ir_instruction_array_store(IROperand* array, IROperand* index, IROperand* value);
+IRInstruction* ir_instruction_bounds_check(IROperand* index, IROperand* size, const char* error_label);
+IRInstruction* ir_instruction_array_decl(const char* array_name, int size);
+IRInstruction* ir_instruction_array_init(const char* array_name, int size, IROperand* value);
 
 IRFunction* ir_function_create(const char* name);
 IRProgram* ir_program_create(void);
 
-IRProgram* ir_generate(Program* ast_program);
-IRFunction* ir_generate_function(Function* func);
-void ir_generate_statement(IRFunction* ir_func, Stmt* stmt);
-IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr);
+IRProgram* ir_generate(Program* ast_program, SemanticAnalyzer* analyzer);
+IRFunction* ir_generate_function(Function* func, SemanticAnalyzer* analyzer);
+void ir_generate_statement(IRFunction* ir_func, Stmt* stmt, SemanticAnalyzer* analyzer);
+IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr, SemanticAnalyzer* analyzer);
 
 void ir_function_add_instruction(IRFunction* func, IRInstruction* instr);
 void ir_function_add_param(IRFunction* func, IROperand* param);

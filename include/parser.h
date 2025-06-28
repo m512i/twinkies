@@ -9,12 +9,13 @@ typedef struct {
     Lexer* lexer;
     Token current;
     Token previous;
-    Error* error;
+    ErrorContext* error_context;
     bool had_error;
     bool panic_mode;
+    int consecutive_errors;
 } Parser;
 
-Parser* parser_create(Lexer* lexer, Error* error);
+Parser* parser_create(Lexer* lexer, ErrorContext* error_context);
 void parser_destroy(Parser* parser);
 Program* parser_parse(Parser* parser);
 
@@ -49,5 +50,6 @@ bool parser_check(Parser* parser, TokenType type);
 bool parser_match(Parser* parser, TokenType type);
 void parser_synchronize(Parser* parser);
 void parser_error(Parser* parser, const char* message);
+void parser_reset_error_count(Parser* parser);
 
 #endif 

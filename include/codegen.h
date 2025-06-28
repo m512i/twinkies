@@ -7,18 +7,24 @@
 #define MAX_PARAMS 4
 
 typedef struct {
+    char* name;
+    int size;
+} ArrayInfo;
+
+typedef struct {
     IRProgram* ir_program;
     FILE* output_file;
     Error* error;
     int indent_level;
     int temp_counter;
-    HashTable* temp_map; 
-    HashTable* var_set;  
-    HashTable* declared_temps; 
-    IROperand* params[MAX_PARAMS]; 
+    HashTable* temp_map;
+    HashTable* var_set;
+    HashTable* array_info;  // Track array variables and their sizes
+    IROperand* params[MAX_PARAMS];
     int param_count;
-    char* current_function_name; 
+    const char* current_function_name;
     char epilogue_label[64];
+    HashTable* declared_temps;
 } CodeGenerator;
 
 CodeGenerator* codegen_create(IRProgram* ir_program, FILE* output_file, Error* error);
@@ -69,5 +75,9 @@ void codegenasm_write_main_function(CodeGenerator* generator);
 
 void codegen_error(CodeGenerator* generator, const char* message);
 void codegenasm_error(CodeGenerator* generator, const char* message);
+
+void codegenasm_array_load(CodeGenerator* generator, IROperand* result, IROperand* array, IROperand* index);
+void codegenasm_array_store(CodeGenerator* generator, IROperand* array, IROperand* index, IROperand* value);
+void codegenasm_bounds_check(CodeGenerator* generator, IROperand* index, IROperand* size, const char* error_label);
 
 #endif 

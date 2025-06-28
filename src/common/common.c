@@ -3,56 +3,311 @@
 
 void error_init(Error* error) {
     error->type = ERROR_NONE;
+    error->severity = SEVERITY_ERROR;
     error->message[0] = '\0';
+    error->suggestion[0] = '\0';
     error->line = 0;
     error->column = 0;
+    error->source_line[0] = '\0';
+    error->source_start = 0;
+    error->source_end = 0;
 }
 
 void error_set(Error* error, ErrorType type, const char* message, int line, int column) {
     error->type = type;
+    error->severity = SEVERITY_ERROR;
     strncpy(error->message, message, sizeof(error->message) - 1);
     error->message[sizeof(error->message) - 1] = '\0';
+    error->suggestion[0] = '\0';
     error->line = line;
     error->column = column;
+    error->source_start = 0;
+    error->source_end = 0;
+}
+
+void error_set_with_suggestion(Error* error, ErrorType type, const char* message, const char* suggestion, int line, int column) {
+    error->type = type;
+    error->severity = SEVERITY_ERROR;
+    strncpy(error->message, message, sizeof(error->message) - 1);
+    error->message[sizeof(error->message) - 1] = '\0';
+    strncpy(error->suggestion, suggestion, sizeof(error->suggestion) - 1);
+    error->suggestion[sizeof(error->suggestion) - 1] = '\0';
+    error->line = line;
+    error->column = column;
+    error->source_start = 0;
+    error->source_end = 0;
 }
 
 void error_print(const Error* error, const char* filename) {
     if (!error || error->type == ERROR_NONE) return;
     
-    fprintf(stderr, "%s:%d:%d: error: ", filename, error->line, error->column);
+    // Print error location
+    fprintf(stderr, "%s" ANSI_BOLD "%s:%d:%d" ANSI_RESET ": ", 
+            error->severity == SEVERITY_ERROR ? ANSI_ERROR : 
+            error->severity == SEVERITY_WARNING ? ANSI_WARNING :
+            error->severity == SEVERITY_INFO ? ANSI_INFO : ANSI_HINT,
+            filename, error->line, error->column);
     
+    // Print error type with correct severity
     switch (error->type) {
         case ERROR_LEXER:
-            fprintf(stderr, "lexical error: %s\n", error->message);
+            fprintf(stderr, ANSI_BOLD "lexical %s" ANSI_RESET ": ", 
+                    error->severity == SEVERITY_WARNING ? "warning" : "error");
             break;
         case ERROR_PARSER:
-            fprintf(stderr, "syntax error: %s\n", error->message);
+            fprintf(stderr, ANSI_BOLD "syntax %s" ANSI_RESET ": ", 
+                    error->severity == SEVERITY_WARNING ? "warning" : "error");
             break;
         case ERROR_SEMANTIC:
-            fprintf(stderr, "semantic error: %s\n", error->message);
+            fprintf(stderr, ANSI_BOLD "semantic %s" ANSI_RESET ": ", 
+                    error->severity == SEVERITY_WARNING ? "warning" : "error");
             break;
         case ERROR_CODEGEN:
-            fprintf(stderr, "code generation error: %s\n", error->message);
+            fprintf(stderr, ANSI_BOLD "code generation %s" ANSI_RESET ": ", 
+                    error->severity == SEVERITY_WARNING ? "warning" : "error");
             break;
         default:
-            fprintf(stderr, "unknown error: %s\n", error->message);
+            fprintf(stderr, ANSI_BOLD "unknown %s" ANSI_RESET ": ", 
+                    error->severity == SEVERITY_WARNING ? "warning" : "error");
             break;
+    }
+    
+    // Print error message
+    fprintf(stderr, "%s\n", error->message);
+    
+    // Print source line if available
+    if (error->source_line[0] != '\0') {
+        fprintf(stderr, "  %s\n", error->source_line);
+        
+        // Print caret pointing to the error
+        if (error->column > 0) {
+            fprintf(stderr, "  ");
+            for (int i = 1; i < error->column; i++) {
+                fprintf(stderr, " ");
+            }
+            fprintf(stderr, "%s^" ANSI_RESET "\n", 
+                    error->severity == SEVERITY_WARNING ? ANSI_WARNING : ANSI_ERROR);
+        }
+    }
+    
+    // Print suggestion if available
+    if (error->suggestion[0] != '\0') {
+        fprintf(stderr, "  %sHint: %s%s\n", ANSI_HINT, error->suggestion, ANSI_RESET);
     }
 }
 
+// Enhanced error context management
+ErrorContext* error_context_create(const char* filename, const char* source_code) {
+    ErrorContext* context = safe_malloc(sizeof(ErrorContext));
+    context->errors = safe_malloc(16 * sizeof(Error));
+    context->count = 0;
+    context->capacity = 16;
+    context->source_code = string_copy(source_code);
+    context->filename = string_copy(filename);
+    return context;
+}
+
+void error_context_destroy(ErrorContext* context) {
+    if (!context) return;
+    safe_free(context->errors);
+    safe_free(context->source_code);
+    safe_free(context->filename);
+    safe_free(context);
+}
+
+void error_context_add_error(ErrorContext* context, ErrorType type, ErrorSeverity severity, 
+                           const char* message, const char* suggestion, int line, int column) {
+    if (!context) return;
+    
+    // Expand capacity if needed
+    if (context->count >= context->capacity) {
+        context->capacity *= 2;
+        context->errors = safe_realloc(context->errors, context->capacity * sizeof(Error));
+    }
+    
+    Error* error = &context->errors[context->count++];
+    error_init(error);
+    error->type = type;
+    error->severity = severity;
+    strncpy(error->message, message, sizeof(error->message) - 1);
+    error->message[sizeof(error->message) - 1] = '\0';
+    
+    if (suggestion) {
+        strncpy(error->suggestion, suggestion, sizeof(error->suggestion) - 1);
+        error->suggestion[sizeof(error->suggestion) - 1] = '\0';
+    }
+    
+    error->line = line;
+    error->column = column;
+    
+    // Get source line for context
+    char* source_line = get_source_line(context->source_code, line);
+    if (source_line) {
+        strncpy(error->source_line, source_line, sizeof(error->source_line) - 1);
+        error->source_line[sizeof(error->source_line) - 1] = '\0';
+        safe_free(source_line);
+    }
+}
+
+void error_context_print_all(ErrorContext* context) {
+    if (!context || context->count == 0) return;
+    
+    fprintf(stderr, "\n");
+    
+    size_t error_count = 0;
+    size_t warning_count = 0;
+    
+    for (size_t i = 0; i < context->count; i++) {
+        if (context->errors[i].severity == SEVERITY_ERROR) {
+            error_count++;
+        } else if (context->errors[i].severity == SEVERITY_WARNING) {
+            warning_count++;
+        }
+        error_print(&context->errors[i], context->filename);
+        if (i < context->count - 1) {
+            fprintf(stderr, "\n");
+        }
+    }
+    
+    // Print summary
+    if (error_count > 0) {
+        fprintf(stderr, "\n%s" ANSI_BOLD "Compilation failed with %zu error(s)" ANSI_RESET, 
+                ANSI_ERROR, error_count);
+        if (warning_count > 0) {
+            fprintf(stderr, " and %zu warning(s)", warning_count);
+        }
+        fprintf(stderr, "\n");
+    } else if (warning_count > 0) {
+        fprintf(stderr, "\n%s" ANSI_BOLD "Compilation completed with %zu warning(s)" ANSI_RESET "\n", 
+                ANSI_WARNING, warning_count);
+    }
+}
+
+bool error_context_has_errors(ErrorContext* context) {
+    if (!context) return false;
+    
+    for (size_t i = 0; i < context->count; i++) {
+        if (context->errors[i].severity == SEVERITY_ERROR) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void error_context_print_source_line(ErrorContext* context, int line, int column, int start, int end) {
+    if (!context || !context->source_code) return;
+    
+    char* source_line = get_source_line(context->source_code, line);
+    if (!source_line) return;
+    
+    fprintf(stderr, "  %s\n", source_line);
+    
+    // Print caret with highlighting
+    fprintf(stderr, "  ");
+    for (int i = 1; i < start; i++) {
+        fprintf(stderr, " ");
+    }
+    fprintf(stderr, "%s", ANSI_ERROR);
+    for (int i = start; i <= end && i <= (int)strlen(source_line); i++) {
+        fprintf(stderr, "^");
+    }
+    fprintf(stderr, "%s\n", ANSI_RESET);
+    
+    safe_free(source_line);
+}
+
+// Enhanced error printing functions
 void print_fatal_error(const char* program_name, const char* message) {
-    fprintf(stderr, "%s: " ANSI_RED ANSI_BOLD "fatal error" ANSI_RESET ": %s\n", program_name, message);
+    fprintf(stderr, "%s: %s" ANSI_BOLD "fatal error" ANSI_RESET ": %s\n", 
+            program_name, ANSI_ERROR, message);
     fflush(stderr);
 }
 
 void print_error(const char* program_name, const char* message) {
-    fprintf(stderr, "%s: " ANSI_RED "error" ANSI_RESET ": %s\n", program_name, message);
+    fprintf(stderr, "%s: %s" ANSI_BOLD "error" ANSI_RESET ": %s\n", 
+            program_name, ANSI_ERROR, message);
     fflush(stderr);
 }
 
 void print_warning(const char* program_name, const char* message) {
-    fprintf(stderr, "%s: " ANSI_YELLOW "warning" ANSI_RESET ": %s\n", program_name, message);
+    fprintf(stderr, "%s: %s" ANSI_BOLD "warning" ANSI_RESET ": %s\n", 
+            program_name, ANSI_WARNING, message);
     fflush(stderr);
+}
+
+void print_info(const char* program_name, const char* message) {
+    fprintf(stderr, "%s: %s" ANSI_BOLD "info" ANSI_RESET ": %s\n", 
+            program_name, ANSI_INFO, message);
+    fflush(stderr);
+}
+
+void print_hint(const char* program_name, const char* message) {
+    fprintf(stderr, "%s: %s" ANSI_BOLD "hint" ANSI_RESET ": %s\n", 
+            program_name, ANSI_HINT, message);
+    fflush(stderr);
+}
+
+// Source code utilities
+char* get_source_line(const char* source_code, int line) {
+    if (!source_code || line <= 0) return NULL;
+    
+    int current_line = 1;
+    const char* start = source_code;
+    const char* end = source_code;
+    
+    while (*end && current_line < line) {
+        if (*end == '\n') {
+            current_line++;
+            if (current_line == line) {
+                start = end + 1;
+            }
+        }
+        end++;
+    }
+    
+    if (current_line != line) return NULL;
+    
+    // Find end of line
+    while (*end && *end != '\n') {
+        end++;
+    }
+    
+    // Copy the line
+    size_t length = end - start;
+    char* result = safe_malloc(length + 1);
+    strncpy(result, start, length);
+    result[length] = '\0';
+    
+    return result;
+}
+
+void highlight_source_range(char* dest, const char* source, int start, int end, size_t dest_size) {
+    if (!dest || !source || start < 0 || end < start) return;
+    
+    size_t source_len = strlen(source);
+    size_t pos = 0;
+    
+    for (size_t i = 0; i < source_len && pos < dest_size - 1; i++) {
+        if (i == (size_t)start) {
+            if (pos + 5 < dest_size) {
+                strcpy(dest + pos, ANSI_ERROR);
+                pos += 5;
+            }
+        }
+        
+        if (pos < dest_size - 1) {
+            dest[pos++] = source[i];
+        }
+        
+        if (i == (size_t)end) {
+            if (pos + 4 < dest_size) {
+                strcpy(dest + pos, ANSI_RESET);
+                pos += 4;
+            }
+        }
+    }
+    
+    dest[pos] = '\0';
 }
 
 void* safe_malloc(size_t size) {

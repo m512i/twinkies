@@ -16,13 +16,16 @@ typedef enum {
     EXPR_BINARY,
     EXPR_UNARY,
     EXPR_CALL,
-    EXPR_GROUP
+    EXPR_GROUP,
+    EXPR_ARRAY_INDEX
 } ExprType;
 
 typedef enum {
     STMT_EXPR,
     STMT_VAR_DECL,
+    STMT_ARRAY_DECL,
     STMT_ASSIGNMENT,
+    STMT_ARRAY_ASSIGNMENT,
     STMT_IF,
     STMT_WHILE,
     STMT_RETURN,
@@ -33,8 +36,14 @@ typedef enum {
 typedef enum {
     TYPE_INT,
     TYPE_BOOL,
-    TYPE_VOID
+    TYPE_VOID,
+    TYPE_ARRAY
 } DataType;
+
+typedef struct {
+    DataType element_type;
+    int size;  // -1 for dynamic arrays
+} ArrayType;
 
 struct Expr {
     ExprType type;
@@ -72,6 +81,11 @@ struct Expr {
         struct {
             Expr* expression;
         } group;
+        
+        struct {
+            Expr* array;
+            Expr* index;
+        } array_index;
     } data;
 };
 
@@ -92,8 +106,21 @@ struct Stmt {
         
         struct {
             char* name;
+            DataType element_type;
+            int size;
+            Expr* initializer;
+        } array_decl;
+        
+        struct {
+            char* name;
             Expr* value;
         } assignment;
+        
+        struct {
+            Expr* array;
+            Expr* index;
+            Expr* value;
+        } array_assignment;
         
         struct {
             Expr* condition;
@@ -143,10 +170,13 @@ Expr* expr_binary(Expr* left, TokenType operator, Expr* right, int line, int col
 Expr* expr_unary(TokenType operator, Expr* operand, int line, int column);
 Expr* expr_call(const char* name, int line, int column);
 Expr* expr_group(Expr* expression, int line, int column);
+Expr* expr_array_index(Expr* array, Expr* index, int line, int column);
 
 Stmt* stmt_expr(Expr* expression, int line, int column);
 Stmt* stmt_var_decl(const char* name, DataType type, Expr* initializer, int line, int column);
+Stmt* stmt_array_decl(const char* name, DataType element_type, int size, Expr* initializer, int line, int column);
 Stmt* stmt_assignment(const char* name, Expr* value, int line, int column);
+Stmt* stmt_array_assignment(Expr* array, Expr* index, Expr* value, int line, int column);
 Stmt* stmt_if(Expr* condition, Stmt* then_branch, Stmt* else_branch, int line, int column);
 Stmt* stmt_while(Expr* condition, Stmt* body, int line, int column);
 Stmt* stmt_return(Expr* value, int line, int column);

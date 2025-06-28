@@ -116,7 +116,24 @@ static Token error_token(Lexer* lexer, const char* message) {
     token.column = lexer->column;
     
     if (lexer->error) {
-        error_set(lexer->error, ERROR_LEXER, message, token.line, token.column);
+        char suggestion[256] = "";
+        
+        // Provide context-specific suggestions
+        if (strstr(message, "Unexpected character")) {
+            strcpy(suggestion, "Check for valid characters: letters, digits, operators, and punctuation");
+        } else if (strstr(message, "Unterminated string")) {
+            strcpy(suggestion, "Add closing double quote (\") to terminate the string literal");
+        } else if (strstr(message, "Invalid number")) {
+            strcpy(suggestion, "Use only digits (0-9) for integer literals");
+        } else if (strstr(message, "Invalid identifier")) {
+            strcpy(suggestion, "Identifiers must start with a letter or underscore, followed by letters, digits, or underscores");
+        }
+        
+        if (suggestion[0] != '\0') {
+            error_set_with_suggestion(lexer->error, ERROR_LEXER, message, suggestion, token.line, token.column);
+        } else {
+            error_set(lexer->error, ERROR_LEXER, message, token.line, token.column);
+        }
     }
     
     return token;
@@ -206,6 +223,8 @@ Token lexer_next_token(Lexer* lexer) {
         case ')': return make_token(lexer, TOKEN_RPAREN);
         case '{': return make_token(lexer, TOKEN_LBRACE);
         case '}': return make_token(lexer, TOKEN_RBRACE);
+        case '[': return make_token(lexer, TOKEN_LBRACKET);
+        case ']': return make_token(lexer, TOKEN_RBRACKET);
         case ';': return make_token(lexer, TOKEN_SEMICOLON);
         case ':': return make_token(lexer, TOKEN_COLON);
         case ',': return make_token(lexer, TOKEN_COMMA);
@@ -306,6 +325,8 @@ const char* token_type_to_string(TokenType type) {
         case TOKEN_RPAREN: return "RPAREN";
         case TOKEN_LBRACE: return "LBRACE";
         case TOKEN_RBRACE: return "RBRACE";
+        case TOKEN_LBRACKET: return "LBRACKET";
+        case TOKEN_RBRACKET: return "RBRACKET";
         case TOKEN_SEMICOLON: return "SEMICOLON";
         case TOKEN_COLON: return "COLON";
         case TOKEN_COMMA: return "COMMA";
