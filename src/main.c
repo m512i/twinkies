@@ -33,12 +33,10 @@ bool has_asm_extension(const char* filename) {
     size_t len = strlen(filename);
     if (len < 2) return false;
     
-    // Check for .s extension
     if (len >= 2 && strcmp(filename + len - 2, ".s") == 0) {
         return true;
     }
     
-    // Check for .asm extension
     if (len >= 4 && strcmp(filename + len - 4, ".asm") == 0) {
         return true;
     }
@@ -137,7 +135,6 @@ void print_ast(const char* source, const char* filename) {
         return;
     }
     
-    // Create error context for parser
     ErrorContext* error_context = error_context_create(filename, source);
     Parser* parser = parser_create(lexer, error_context);
     if (error.type != ERROR_NONE) {
@@ -186,7 +183,6 @@ void print_ir(const char* source, const char* filename) {
         return;
     }
     
-    // Create error context for parser
     ErrorContext* error_context = error_context_create(filename, source);
     Parser* parser = parser_create(lexer, error_context);
     if (error.type != ERROR_NONE) {
@@ -222,7 +218,6 @@ void print_ir(const char* source, const char* filename) {
     }
     
     if (!semantic_analyze(analyzer)) {
-        // Semantic errors are already added to error_context by the analyzer
         semantic_destroy(analyzer);
         program_destroy(program);
         error_context_destroy(error_context);
@@ -284,12 +279,10 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
         return false;
     }
     
-    // Create error context for collecting multiple errors
     ErrorContext* error_context = error_context_create(input_filename, source);
     Error error;
     error_init(&error);
     
-    // Lexical Analysis
     Lexer* lexer = lexer_create(source, &error);
     if (error.type != ERROR_NONE) {
         error_context_add_error(error_context, error.type, SEVERITY_ERROR, 
@@ -297,7 +290,6 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
         error_init(&error);
     }
     
-    // Parsing
     Parser* parser = NULL;
     Program* program = NULL;
     if (lexer) {
@@ -317,7 +309,6 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
         }
     }
     
-    // Semantic Analysis - continue even if parsing had errors
     SemanticAnalyzer* analyzer = NULL;
     if (program) {  // Only do semantic analysis if we have a program (even with parse errors)
         analyzer = semantic_create(program, error_context);
@@ -332,7 +323,6 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
         }
     }
     
-    // If we have errors, print them all and stop
     if (error_context_has_errors(error_context)) {
         error_context_print_all(error_context);
         error_context_destroy(error_context);
@@ -344,14 +334,11 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
         return false;
     }
     
-    // Print warnings if any, but continue compilation
     if (error_context->count > 0) {
         error_context_print_all(error_context);
-        // Clear warnings after printing them
         error_context->count = 0;
     }
     
-    // Code Generation
     IRProgram* ir_program = NULL;
     if (analyzer && program) {
         ir_program = ir_generate(program, analyzer);
@@ -374,7 +361,6 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
         return false;
     }
     
-    // Output Generation
     FILE* output_file = fopen(output_filename, "w");
     if (!output_file) {
         error_context_add_error(error_context, ERROR_CODEGEN, SEVERITY_ERROR, 
@@ -417,7 +403,6 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
         }
     }
     
-    // Cleanup
     if (generator) {
         if (assembly_output) {
             codegenasm_destroy(generator);
@@ -439,7 +424,6 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
         return false;
     }
     
-    // Success
     error_context_destroy(error_context);
     if (ir_program) ir_program_destroy(ir_program);
     if (analyzer) semantic_destroy(analyzer);
@@ -551,7 +535,6 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         
-        // Validate output file extension based on output type
         if (assembly_output) {
             if (!has_asm_extension(output_filename)) {
                 print_error(argv[0], "assembly output requires .s or .asm extension");

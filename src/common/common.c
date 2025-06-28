@@ -41,14 +41,12 @@ void error_set_with_suggestion(Error* error, ErrorType type, const char* message
 void error_print(const Error* error, const char* filename) {
     if (!error || error->type == ERROR_NONE) return;
     
-    // Print error location
     fprintf(stderr, "%s" ANSI_BOLD "%s:%d:%d" ANSI_RESET ": ", 
             error->severity == SEVERITY_ERROR ? ANSI_ERROR : 
             error->severity == SEVERITY_WARNING ? ANSI_WARNING :
             error->severity == SEVERITY_INFO ? ANSI_INFO : ANSI_HINT,
             filename, error->line, error->column);
     
-    // Print error type with correct severity
     switch (error->type) {
         case ERROR_LEXER:
             fprintf(stderr, ANSI_BOLD "lexical %s" ANSI_RESET ": ", 
@@ -72,14 +70,11 @@ void error_print(const Error* error, const char* filename) {
             break;
     }
     
-    // Print error message
     fprintf(stderr, "%s\n", error->message);
     
-    // Print source line if available
     if (error->source_line[0] != '\0') {
         fprintf(stderr, "  %s\n", error->source_line);
         
-        // Print caret pointing to the error
         if (error->column > 0) {
             fprintf(stderr, "  ");
             for (int i = 1; i < error->column; i++) {
@@ -90,13 +85,11 @@ void error_print(const Error* error, const char* filename) {
         }
     }
     
-    // Print suggestion if available
     if (error->suggestion[0] != '\0') {
         fprintf(stderr, "  %sHint: %s%s\n", ANSI_HINT, error->suggestion, ANSI_RESET);
     }
 }
 
-// Enhanced error context management
 ErrorContext* error_context_create(const char* filename, const char* source_code) {
     ErrorContext* context = safe_malloc(sizeof(ErrorContext));
     context->errors = safe_malloc(16 * sizeof(Error));
@@ -119,7 +112,6 @@ void error_context_add_error(ErrorContext* context, ErrorType type, ErrorSeverit
                            const char* message, const char* suggestion, int line, int column) {
     if (!context) return;
     
-    // Expand capacity if needed
     if (context->count >= context->capacity) {
         context->capacity *= 2;
         context->errors = safe_realloc(context->errors, context->capacity * sizeof(Error));
@@ -140,7 +132,6 @@ void error_context_add_error(ErrorContext* context, ErrorType type, ErrorSeverit
     error->line = line;
     error->column = column;
     
-    // Get source line for context
     char* source_line = get_source_line(context->source_code, line);
     if (source_line) {
         strncpy(error->source_line, source_line, sizeof(error->source_line) - 1);
@@ -169,7 +160,6 @@ void error_context_print_all(ErrorContext* context) {
         }
     }
     
-    // Print summary
     if (error_count > 0) {
         fprintf(stderr, "\n%s" ANSI_BOLD "Compilation failed with %zu error(s)" ANSI_RESET, 
                 ANSI_ERROR, error_count);
@@ -202,7 +192,6 @@ void error_context_print_source_line(ErrorContext* context, int line, int column
     
     fprintf(stderr, "  %s\n", source_line);
     
-    // Print caret with highlighting
     fprintf(stderr, "  ");
     for (int i = 1; i < start; i++) {
         fprintf(stderr, " ");
@@ -216,7 +205,6 @@ void error_context_print_source_line(ErrorContext* context, int line, int column
     safe_free(source_line);
 }
 
-// Enhanced error printing functions
 void print_fatal_error(const char* program_name, const char* message) {
     fprintf(stderr, "%s: %s" ANSI_BOLD "fatal error" ANSI_RESET ": %s\n", 
             program_name, ANSI_ERROR, message);
@@ -247,7 +235,6 @@ void print_hint(const char* program_name, const char* message) {
     fflush(stderr);
 }
 
-// Source code utilities
 char* get_source_line(const char* source_code, int line) {
     if (!source_code || line <= 0) return NULL;
     
@@ -267,12 +254,10 @@ char* get_source_line(const char* source_code, int line) {
     
     if (current_line != line) return NULL;
     
-    // Find end of line
     while (*end && *end != '\n') {
         end++;
     }
     
-    // Copy the line
     size_t length = end - start;
     char* result = safe_malloc(length + 1);
     strncpy(result, start, length);

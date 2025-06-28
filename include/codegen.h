@@ -19,7 +19,7 @@ typedef struct {
     int temp_counter;
     HashTable* temp_map;
     HashTable* var_set;
-    HashTable* array_info;  // Track array variables and their sizes
+    HashTable* array_info; 
     IROperand* params[MAX_PARAMS];
     int param_count;
     const char* current_function_name;

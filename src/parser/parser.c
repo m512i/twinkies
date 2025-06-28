@@ -1,6 +1,5 @@
 #include "../include/parser.h"
 
-// Forward declarations
 Expr* finish_call(Parser* parser, Expr* callee);
 Expr* finish_array_index(Parser* parser, Expr* array);
 
@@ -54,7 +53,7 @@ bool parser_match(Parser* parser, TokenType type) {
 
 void parser_synchronize(Parser* parser) {
     parser->panic_mode = false;
-    parser->consecutive_errors = 0;  // Reset error counter on successful sync
+    parser->consecutive_errors = 0; 
     
     while (parser->current.type != TOKEN_EOF) {
         if (parser->previous.type == TOKEN_SEMICOLON) return;
@@ -81,10 +80,8 @@ void parser_reset_error_count(Parser* parser) {
 void parser_error(Parser* parser, const char* message) {
     if (parser->panic_mode) return;
     
-    // Be more permissive - allow more errors before setting panic mode
     parser->consecutive_errors++;
     
-    // Increase the threshold to allow more errors to be collected
     if (parser->consecutive_errors > 10) {
         parser->panic_mode = true;
         parser->consecutive_errors = 0;
@@ -95,7 +92,6 @@ void parser_error(Parser* parser, const char* message) {
     if (parser->error_context) {
         char suggestion[256] = "";
         
-        // Provide context-specific suggestions
         if (strstr(message, "Expect ')'")) {
             strcpy(suggestion, "Check for matching parentheses and ensure all '(' have corresponding ')'");
         } else if (strstr(message, "Expect '}'")) {
@@ -310,7 +306,6 @@ Stmt* parse_statement(Parser* parser) {
         result = parse_expression_statement(parser);
     }
     
-    // Reset error counter if parsing succeeded
     if (result) {
         parser_reset_error_count(parser);
     }
@@ -334,7 +329,6 @@ Stmt* parse_var_declaration(Parser* parser) {
         parser_error(parser, "Expect type annotation.");
     }
     
-    // Check for array declaration
     if (parser_match(parser, TOKEN_LBRACKET)) {
         if (parser_match(parser, TOKEN_NUMBER)) {
             int size = (int)parser->previous.literal.number_value;
@@ -345,10 +339,8 @@ Stmt* parse_var_declaration(Parser* parser) {
                 initializer = parse_expression(parser);
             }
             
-            // Try to consume semicolon, but don't fail if missing
             if (!parser_match(parser, TOKEN_SEMICOLON)) {
                 parser_error(parser, "Expect ';' after array declaration.");
-                // Try to synchronize and continue
                 parser_synchronize(parser);
             }
             return stmt_array_decl(name, type, size, initializer, parser->previous.line, parser->previous.column);
@@ -362,10 +354,8 @@ Stmt* parse_var_declaration(Parser* parser) {
         initializer = parse_expression(parser);
     }
     
-    // Try to consume semicolon, but don't fail if missing
     if (!parser_match(parser, TOKEN_SEMICOLON)) {
         parser_error(parser, "Expect ';' after variable declaration.");
-        // Try to synchronize and continue
         parser_synchronize(parser);
     }
     
@@ -381,17 +371,14 @@ Stmt* parse_assignment(Parser* parser) {
         if (expr->type == EXPR_VARIABLE) {
             char* name = string_copy(expr->data.variable.name);
             expr_destroy(expr);
-            // Try to consume semicolon, but don't fail if missing
             if (!parser_match(parser, TOKEN_SEMICOLON)) {
                 parser_error(parser, "Expect ';' after assignment.");
                 parser_synchronize(parser);
             }
             return stmt_assignment(name, value, parser->previous.line, parser->previous.column);
         } else if (expr->type == EXPR_ARRAY_INDEX) {
-            // Create array assignment statement
             Expr* array = expr->data.array_index.array;
             Expr* index = expr->data.array_index.index;
-            // Try to consume semicolon, but don't fail if missing
             if (!parser_match(parser, TOKEN_SEMICOLON)) {
                 parser_error(parser, "Expect ';' after assignment.");
                 parser_synchronize(parser);
@@ -402,7 +389,6 @@ Stmt* parse_assignment(Parser* parser) {
         parser_error(parser, "Invalid assignment target.");
     }
     
-    // Try to consume semicolon, but don't fail if missing
     if (!parser_match(parser, TOKEN_SEMICOLON)) {
         parser_error(parser, "Expect ';' after expression.");
         parser_synchronize(parser);
@@ -462,7 +448,6 @@ Stmt* parse_return_statement(Parser* parser) {
         value = parse_expression(parser);
     }
     
-    // Try to consume semicolon, but don't fail if missing
     if (!parser_match(parser, TOKEN_SEMICOLON)) {
         parser_error(parser, "Expect ';' after return value.");
         parser_synchronize(parser);
@@ -474,7 +459,6 @@ Stmt* parse_print_statement(Parser* parser) {
     parser_consume(parser, TOKEN_LPAREN, "Expect '(' after 'print'.");
     Expr* value = parse_expression(parser);
     parser_consume(parser, TOKEN_RPAREN, "Expect ')' after print value.");
-    // Try to consume semicolon, but don't fail if missing
     if (!parser_match(parser, TOKEN_SEMICOLON)) {
         parser_error(parser, "Expect ';' after print statement.");
         parser_synchronize(parser);
@@ -485,7 +469,6 @@ Stmt* parse_print_statement(Parser* parser) {
 
 Stmt* parse_expression_statement(Parser* parser) {
     Expr* expr = parse_expression(parser);
-    // Try to consume semicolon, but don't fail if missing
     if (!parser_match(parser, TOKEN_SEMICOLON)) {
         parser_error(parser, "Expect ';' after expression.");
         parser_synchronize(parser);
@@ -510,7 +493,6 @@ Stmt* parse_block(Parser* parser) {
     }
     
     printf("[DEBUG] Exiting block, consuming RBRACE\n"); fflush(stdout);
-    // Try to consume closing brace, but don't fail if missing
     if (!parser_match(parser, TOKEN_RBRACE)) {
         parser_error(parser, "Expect '}' after block.");
         parser_synchronize(parser);

@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include <assert.h>
 
-// Enhanced color codes
 #define ANSI_RED     "\033[31m"
 #define ANSI_GREEN   "\033[32m"
 #define ANSI_YELLOW  "\033[33m"
@@ -19,7 +18,6 @@
 #define ANSI_UNDERLINE "\033[4m"
 #define ANSI_RESET   "\033[0m"
 
-// Error severity levels
 #define ANSI_ERROR   ANSI_RED ANSI_BOLD
 #define ANSI_WARNING ANSI_YELLOW ANSI_BOLD
 #define ANSI_INFO    ANSI_CYAN
@@ -65,7 +63,6 @@ void error_set(Error* error, ErrorType type, const char* message, int line, int 
 void error_set_with_suggestion(Error* error, ErrorType type, const char* message, const char* suggestion, int line, int column);
 void error_print(const Error* error, const char* filename);
 
-// Enhanced error context management
 ErrorContext* error_context_create(const char* filename, const char* source_code);
 void error_context_destroy(ErrorContext* context);
 void error_context_add_error(ErrorContext* context, ErrorType type, ErrorSeverity severity, 
@@ -74,14 +71,12 @@ void error_context_print_all(ErrorContext* context);
 bool error_context_has_errors(ErrorContext* context);
 void error_context_print_source_line(ErrorContext* context, int line, int column, int start, int end);
 
-// Enhanced error printing functions
 void print_fatal_error(const char* program_name, const char* message);
 void print_error(const char* program_name, const char* message);
 void print_warning(const char* program_name, const char* message);
 void print_info(const char* program_name, const char* message);
 void print_hint(const char* program_name, const char* message);
 
-// Source code utilities
 char* get_source_line(const char* source_code, int line);
 void highlight_source_range(char* dest, const char* source, int start, int end, size_t dest_size);
 

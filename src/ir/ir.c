@@ -3,7 +3,7 @@
 IROperand* ir_operand_temp(int temp_id) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_TEMP;
-    operand->array_size = -1;  // Not an array
+    operand->array_size = -1;  
     operand->data.temp_id = temp_id;
     return operand;
 }
@@ -11,7 +11,7 @@ IROperand* ir_operand_temp(int temp_id) {
 IROperand* ir_operand_var(const char* var_name) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_VAR;
-    operand->array_size = -1;  // Default to not an array
+    operand->array_size = -1;  
     operand->data.var_name = string_copy(var_name);
     return operand;
 }
@@ -19,7 +19,7 @@ IROperand* ir_operand_var(const char* var_name) {
 IROperand* ir_operand_array_var(const char* var_name, int size) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_VAR;
-    operand->array_size = size;  // Store the array size
+    operand->array_size = size;  
     operand->data.var_name = string_copy(var_name);
     return operand;
 }
@@ -27,7 +27,7 @@ IROperand* ir_operand_array_var(const char* var_name, int size) {
 IROperand* ir_operand_const(int64_t value) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_CONST;
-    operand->array_size = -1;  // Not an array
+    operand->array_size = -1;  
     operand->data.const_value = value;
     return operand;
 }
@@ -35,7 +35,7 @@ IROperand* ir_operand_const(int64_t value) {
 IROperand* ir_operand_label(const char* label_name) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_LABEL;
-    operand->array_size = -1;  // Not an array
+    operand->array_size = -1;  
     operand->data.label_name = string_copy(label_name);
     return operand;
 }
@@ -564,7 +564,6 @@ void ir_generate_statement(IRFunction* ir_func, Stmt* stmt, SemanticAnalyzer* an
                 IRInstruction* array_init = ir_instruction_array_init(stmt->data.array_decl.name, stmt->data.array_decl.size, value);
                 ir_function_add_instruction(ir_func, array_init);
             } else {
-                // Generate array declaration instruction
                 IRInstruction* array_decl = ir_instruction_array_decl(stmt->data.array_decl.name, stmt->data.array_decl.size);
                 ir_function_add_instruction(ir_func, array_decl);
             }
@@ -581,10 +580,9 @@ void ir_generate_statement(IRFunction* ir_func, Stmt* stmt, SemanticAnalyzer* an
             IROperand* index = ir_generate_expression(ir_func, stmt->data.array_assignment.index, analyzer);
             IROperand* value = ir_generate_expression(ir_func, stmt->data.array_assignment.value, analyzer);
             
-            // Generate bounds check using array size from operand
             char* error_label = ir_function_new_label(ir_func);
             int array_size = array->array_size;
-            if (array_size == -1) array_size = 5; // Fallback if not found
+            if (array_size == -1) array_size = 5; 
             IROperand* size = ir_operand_const(array_size);
             IRInstruction* bounds_check = ir_instruction_bounds_check(index, size, error_label);
             ir_function_add_instruction(ir_func, bounds_check);
@@ -688,7 +686,6 @@ IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr, SemanticAnaly
             return ir_operand_const(expr->data.literal.value.number_value);
             
         case EXPR_VARIABLE: {
-            // Check if this is an array variable and get its size
             int array_size = get_array_size(analyzer, expr->data.variable.name);
             printf("[DEBUG] Variable %s: array_size = %d\n", expr->data.variable.name, array_size);
             if (array_size != -1) {
@@ -764,16 +761,14 @@ IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr, SemanticAnaly
             IROperand* array = ir_generate_expression(ir_func, expr->data.array_index.array, analyzer);
             IROperand* index = ir_generate_expression(ir_func, expr->data.array_index.index, analyzer);
             
-            // Generate bounds check using array size from operand
             char* error_label = ir_function_new_label(ir_func);
             int array_size = array->array_size;
             printf("[DEBUG] Array index: array_size = %d\n", array_size);
-            if (array_size == -1) array_size = 5; // Fallback if not found
+            if (array_size == -1) array_size = 5; 
             IROperand* size = ir_operand_const(array_size);
             IRInstruction* bounds_check = ir_instruction_bounds_check(index, size, error_label);
             ir_function_add_instruction(ir_func, bounds_check);
             
-            // Generate array load
             IROperand* result = ir_operand_temp(ir_function_new_temp(ir_func));
             IRInstruction* load = ir_instruction_array_load(result, array, index);
             ir_function_add_instruction(ir_func, load);

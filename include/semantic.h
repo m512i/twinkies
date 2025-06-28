@@ -15,11 +15,11 @@ typedef struct {
     SymbolType type;
     DataType data_type;
     int scope_level;
-    int array_size;  // Size for array variables, -1 for non-arrays
-    bool is_used;    // Track if variable is used
-    bool is_defined; // Track if variable is defined
-    int definition_line; // Line where variable is defined
-    int definition_column; // Column where variable is defined
+    int array_size;  
+    bool is_used;   
+    bool is_defined; 
+    int definition_line; 
+    int definition_column; 
     union {
         struct {
             int param_index;
@@ -71,7 +71,6 @@ void semantic_error_redefined(SemanticAnalyzer* analyzer, const char* name, int 
 void semantic_error_array_bounds(SemanticAnalyzer* analyzer, const char* array_name, int index, int size, int line, int column);
 void semantic_error_invalid_operation(SemanticAnalyzer* analyzer, const char* operation, DataType type, int line, int column);
 
-// Warning functions
 void semantic_warning(SemanticAnalyzer* analyzer, const char* message, int line, int column);
 void semantic_warning_with_suggestion(SemanticAnalyzer* analyzer, const char* message, const char* suggestion, int line, int column);
 void semantic_warning_unused_variable(SemanticAnalyzer* analyzer, const char* name, int line, int column);

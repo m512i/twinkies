@@ -75,9 +75,8 @@ static void skip_whitespace(Lexer* lexer) {
         if (c == ' ' || c == '\r' || c == '\t' || c == '\n') {
             advance(lexer);
         } else if (c == '/' && peek_next(lexer) == '/') {
-            // Skip comment until end of line
-            advance(lexer); // skip first '/'
-            advance(lexer); // skip second '/'
+            advance(lexer);
+            advance(lexer); 
             while (peek(lexer) != '\n' && !is_at_end(lexer)) {
                 advance(lexer);
             }
@@ -118,7 +117,6 @@ static Token error_token(Lexer* lexer, const char* message) {
     if (lexer->error) {
         char suggestion[256] = "";
         
-        // Provide context-specific suggestions
         if (strstr(message, "Unexpected character")) {
             strcpy(suggestion, "Check for valid characters: letters, digits, operators, and punctuation");
         } else if (strstr(message, "Unterminated string")) {
