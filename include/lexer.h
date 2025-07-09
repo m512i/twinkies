@@ -17,6 +17,8 @@ typedef enum {
     
     TOKEN_INT,
     TOKEN_BOOL,
+    TOKEN_FLOAT,
+    TOKEN_DOUBLE,
     
     // Operators
     TOKEN_PLUS,      // +
@@ -62,6 +64,7 @@ typedef struct {
     union {
         int64_t number_value;
         bool bool_value;
+        double float_value;
     } literal;
 } Token;
 

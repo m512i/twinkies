@@ -37,7 +37,9 @@ typedef enum {
     TYPE_INT,
     TYPE_BOOL,
     TYPE_VOID,
-    TYPE_ARRAY
+    TYPE_ARRAY,
+    TYPE_FLOAT,
+    TYPE_DOUBLE
 } DataType;
 
 typedef struct {
@@ -54,8 +56,10 @@ struct Expr {
             union {
                 int64_t number_value;
                 bool bool_value;
+                double float_value;
             } value;
             bool is_bool_literal;
+            bool is_float_literal;
         } literal;
         
         struct {
@@ -165,6 +169,7 @@ struct Program {
 
 Expr* expr_literal_number(int64_t value, int line, int column);
 Expr* expr_literal_bool(bool value, int line, int column);
+Expr* expr_literal_float(double value, int line, int column);
 Expr* expr_variable(const char* name, int line, int column);
 Expr* expr_binary(Expr* left, TLTokenType operator, Expr* right, int line, int column);
 Expr* expr_unary(TLTokenType operator, Expr* operand, int line, int column);

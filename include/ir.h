@@ -35,7 +35,8 @@ typedef enum {
     IR_ARRAY_STORE,
     IR_BOUNDS_CHECK,
     IR_ARRAY_DECL,
-    IR_ARRAY_INIT
+    IR_ARRAY_INIT,
+    IR_VAR_DECL
 } IROpcode;
 
 typedef enum {
@@ -47,11 +48,14 @@ typedef enum {
 
 typedef struct {
     IROperandType type;
-    int array_size;  // Size for array variables, -1 for non-arrays
+    int array_size; 
+    bool is_float_const;  
+    DataType data_type;  
     union {
         int temp_id;
         char* var_name;
         int64_t const_value;
+        double float_const_value;
         char* label_name;
     } data;
 } IROperand;
@@ -80,6 +84,7 @@ IROperand* ir_operand_temp(int temp_id);
 IROperand* ir_operand_var(const char* var_name);
 IROperand* ir_operand_array_var(const char* var_name, int size);
 IROperand* ir_operand_const(int64_t value);
+IROperand* ir_operand_float_const(double value);
 IROperand* ir_operand_label(const char* label_name);
 
 IRInstruction* ir_instruction_nop(void);

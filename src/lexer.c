@@ -138,11 +138,19 @@ static Token error_token(Lexer* lexer, const char* message) {
 }
 
 static TLTokenType identifier_type(const char* lexeme) {
-    for (int i = 0; keywords[i].keyword != NULL; i++) {
-        if (string_equal(lexeme, keywords[i].keyword)) {
-            return keywords[i].type;
-        }
-    }
+    if (strcmp(lexeme, "func") == 0) return TOKEN_FUNC;
+    if (strcmp(lexeme, "let") == 0) return TOKEN_LET;
+    if (strcmp(lexeme, "if") == 0) return TOKEN_IF;
+    if (strcmp(lexeme, "else") == 0) return TOKEN_ELSE;
+    if (strcmp(lexeme, "while") == 0) return TOKEN_WHILE;
+    if (strcmp(lexeme, "return") == 0) return TOKEN_RETURN;
+    if (strcmp(lexeme, "print") == 0) return TOKEN_PRINT;
+    if (strcmp(lexeme, "int") == 0) return TOKEN_INT;
+    if (strcmp(lexeme, "bool") == 0) return TOKEN_BOOL;
+    if (strcmp(lexeme, "float") == 0) return TOKEN_FLOAT;
+    if (strcmp(lexeme, "double") == 0) return TOKEN_DOUBLE;
+    if (strcmp(lexeme, "true") == 0) return TOKEN_TRUE;
+    if (strcmp(lexeme, "false") == 0) return TOKEN_FALSE;
     return TOKEN_IDENTIFIER;
 }
 
@@ -172,6 +180,18 @@ static Token identifier(Lexer* lexer) {
 static Token number(Lexer* lexer) {
     while (isdigit(peek(lexer))) {
         advance(lexer);
+    }
+    
+    if (peek(lexer) == '.' && isdigit(peek_next(lexer))) {
+        advance(lexer); 
+        
+        while (isdigit(peek(lexer))) {
+            advance(lexer);
+        }
+        
+        Token token = make_token(lexer, TOKEN_NUMBER);
+        token.literal.float_value = atof(token.lexeme);
+        return token;
     }
     
     Token token = make_token(lexer, TOKEN_NUMBER);
@@ -304,6 +324,8 @@ const char* token_type_to_string(TLTokenType type) {
         case TOKEN_PRINT: return "PRINT";
         case TOKEN_INT: return "INT";
         case TOKEN_BOOL: return "BOOL";
+        case TOKEN_FLOAT: return "FLOAT";
+        case TOKEN_DOUBLE: return "DOUBLE";
         case TOKEN_PLUS: return "PLUS";
         case TOKEN_MINUS: return "MINUS";
         case TOKEN_STAR: return "STAR";
@@ -342,7 +364,11 @@ void token_print(const Token* token) {
            token_type_to_string(token->type), token->lexeme, token->line, token->column);
     
     if (token->type == TOKEN_NUMBER) {
-        printf(", value: %lld", token->literal.number_value);
+        if (strchr(token->lexeme, '.') != NULL) {
+            printf(", value: %f", token->literal.float_value);
+        } else {
+            printf(", value: %lld", token->literal.number_value);
+        }
     }
     
     if (token->type == TOKEN_TRUE || token->type == TOKEN_FALSE) {

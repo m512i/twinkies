@@ -73,7 +73,6 @@ Scope* scope_create(Scope* parent) {
 void scope_destroy(Scope* scope) {
     if (!scope) return;
     
-    // Note: We don't destroy the symbols here as they're owned by the AST
     hashtable_destroy(scope->symbols);
     safe_free(scope);
 }
@@ -132,7 +131,6 @@ Symbol* scope_define_array(SemanticAnalyzer* analyzer, const char* name, DataTyp
     hashtable_put(analyzer->current_scope->symbols, name, symbol);
     printf("[DEBUG] Array %s defined with size %d\n", name, symbol->array_size);
     
-    // Debug: check if the symbol is actually in the hashtable
     Symbol* check = hashtable_get(analyzer->current_scope->symbols, name);
     if (check) {
         printf("[DEBUG] Verified: symbol %s is in hashtable with size %d\n", name, check->array_size);
@@ -150,8 +148,6 @@ Symbol* scope_resolve(SemanticAnalyzer* analyzer, const char* name) {
     while (scope) {
         printf("[DEBUG] Checking scope level %d\n", scope_level);
         printf("[DEBUG] Scope hashtable size: %zu\n", scope->symbols->size);
-        
-        // Debug: print all keys in this scope
         printf("[DEBUG] Keys in scope level %d:\n", scope_level);
         for (size_t i = 0; i < scope->symbols->capacity; i++) {
             HashTableEntry* entry = scope->symbols->buckets[i];
@@ -196,6 +192,8 @@ DataType type_check_expression(SemanticAnalyzer* analyzer, Expr* expr) {
         case EXPR_LITERAL:
             if (expr->data.literal.is_bool_literal) {
                 return TYPE_BOOL;
+            } else if (expr->data.literal.is_float_literal) {
+                return TYPE_DOUBLE; 
             } else {
                 return TYPE_INT;
             }
@@ -548,10 +546,19 @@ bool type_check_assignment(SemanticAnalyzer* analyzer, DataType target_type, Dat
         // Note: We don't have line/column info here, so we'll use 0,0
         // The actual line info should come from the calling context
         semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
-        return true;  // Allow implicit bool to int conversion
+        return true;
     } else if (target_type == TYPE_BOOL && value_type == TYPE_INT) {
         // Note: We don't have line/column info here, so we'll use 0,0
         // The actual line info should come from the calling context
+        semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
+        return true;  
+    } else if (target_type == TYPE_FLOAT && value_type == TYPE_INT) {
+        semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
+        return true;  
+    } else if (target_type == TYPE_DOUBLE && (value_type == TYPE_INT || value_type == TYPE_FLOAT)) {
+        semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
+        return true;  
+    } else if (target_type == TYPE_FLOAT && value_type == TYPE_DOUBLE) {
         semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
         return true;  
     }
@@ -757,7 +764,7 @@ const char* symbol_type_to_string(SymbolType type) {
 }
 
 bool is_numeric_type(DataType type) {
-    return type == TYPE_INT;
+    return type == TYPE_INT || type == TYPE_FLOAT || type == TYPE_DOUBLE;
 }
 
 bool is_boolean_type(DataType type) {
@@ -778,7 +785,6 @@ static bool parameter_list_equals(DynamicArray* a, DynamicArray* b) {
     return true;
 }
 
-// Helper: Make a signature string for a function (for error messages)
 static void make_signature_string(DynamicArray* params, char* buf, size_t buflen) {
     buf[0] = '\0';
     for (size_t i = 0; i < params->size; i++) {

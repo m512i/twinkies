@@ -213,8 +213,13 @@ Expr* parse_unary(Parser* parser) {
 
 Expr* parse_primary(Parser* parser) {
     if (parser_match(parser, TOKEN_NUMBER)) {
-        return expr_literal_number(parser->previous.literal.number_value,
-                                 parser->previous.line, parser->previous.column);
+        if (strchr(parser->previous.lexeme, '.') != NULL) {
+            return expr_literal_float(parser->previous.literal.float_value,
+                                    parser->previous.line, parser->previous.column);
+        } else {
+            return expr_literal_number(parser->previous.literal.number_value,
+                                    parser->previous.line, parser->previous.column);
+        }
     }
     if (parser_match(parser, TOKEN_TRUE)) {
         return expr_literal_bool(true, parser->previous.line, parser->previous.column);
@@ -325,6 +330,10 @@ Stmt* parse_var_declaration(Parser* parser) {
         type = TYPE_INT;
     } else if (parser_match(parser, TOKEN_BOOL)) {
         type = TYPE_BOOL;
+    } else if (parser_match(parser, TOKEN_FLOAT)) {
+        type = TYPE_FLOAT;
+    } else if (parser_match(parser, TOKEN_DOUBLE)) {
+        type = TYPE_DOUBLE;
     } else {
         parser_error(parser, "Expect type annotation.");
     }
@@ -531,6 +540,12 @@ Function* parse_function(Parser* parser) {
     } else if (parser_match(parser, TOKEN_BOOL)) {
         function->return_type = TYPE_BOOL;
         printf("[DEBUG] Return type: BOOL\n"); fflush(stdout);
+    } else if (parser_match(parser, TOKEN_FLOAT)) {
+        function->return_type = TYPE_FLOAT;
+        printf("[DEBUG] Return type: FLOAT\n"); fflush(stdout);
+    } else if (parser_match(parser, TOKEN_DOUBLE)) {
+        function->return_type = TYPE_DOUBLE;
+        printf("[DEBUG] Return type: DOUBLE\n"); fflush(stdout);
     } else {
         printf("[DEBUG] Expected return type, got: %s\n", token_type_to_string(parser->current.type)); fflush(stdout);
         parser_error(parser, "Expect return type.");
@@ -557,6 +572,10 @@ Parameter* parse_parameter(Parser* parser) {
         type = TYPE_INT;
     } else if (parser_match(parser, TOKEN_BOOL)) {
         type = TYPE_BOOL;
+    } else if (parser_match(parser, TOKEN_FLOAT)) {
+        type = TYPE_FLOAT;
+    } else if (parser_match(parser, TOKEN_DOUBLE)) {
+        type = TYPE_DOUBLE;
     } else {
         parser_error(parser, "Expect parameter type.");
     }

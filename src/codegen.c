@@ -1,5 +1,10 @@
 #include "../include/codegen.h"
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+const char* get_c_type_string(DataType type);
 
 CodeGenerator* codegen_create(IRProgram* ir_program, FILE* output_file, Error* error) {
     CodeGenerator* generator = safe_malloc(sizeof(CodeGenerator));
@@ -11,6 +16,7 @@ CodeGenerator* codegen_create(IRProgram* ir_program, FILE* output_file, Error* e
     generator->temp_map = hashtable_create(16);
     generator->var_set = hashtable_create(16); 
     generator->array_info = hashtable_create(16);
+    generator->variable_types = hashtable_create(16);
     generator->param_count = 0; 
     return generator;
 }
@@ -21,6 +27,7 @@ void codegen_destroy(CodeGenerator* generator) {
     hashtable_destroy(generator->temp_map);
     hashtable_destroy(generator->var_set);
     hashtable_destroy(generator->array_info);
+    hashtable_destroy(generator->variable_types);
     safe_free(generator);
 }
 
@@ -85,20 +92,27 @@ void codegen_generate_instruction(CodeGenerator* generator, IRInstruction* instr
         case IR_MUL:
         case IR_DIV:
         case IR_MOD:
-        case IR_EQ:
-        case IR_NE:
-        case IR_LT:
-        case IR_LE:
-        case IR_GT:
-        case IR_GE:
-        case IR_AND:
-        case IR_OR:
             codegen_write_indent(generator);
             codegen_write_operand(generator, instr->result);
             fprintf(generator->output_file, " = ");
-            codegen_write_operand(generator, instr->arg1);
-            fprintf(generator->output_file, " %s ", ir_opcode_to_string(instr->opcode));
-            codegen_write_operand(generator, instr->arg2);
+            
+            bool use_float = false;
+            if (instr->arg1 && (instr->arg1->data_type == TYPE_FLOAT || instr->arg1->data_type == TYPE_DOUBLE)) {
+                use_float = true;
+            }
+            if (instr->arg2 && (instr->arg2->data_type == TYPE_FLOAT || instr->arg2->data_type == TYPE_DOUBLE)) {
+                use_float = true;
+            }
+            
+            if (use_float) {
+                codegen_write_operand(generator, instr->arg1);
+                fprintf(generator->output_file, " %s ", ir_opcode_to_string(instr->opcode));
+                codegen_write_operand(generator, instr->arg2);
+            } else {
+                codegen_write_operand(generator, instr->arg1);
+                fprintf(generator->output_file, " %s ", ir_opcode_to_string(instr->opcode));
+                codegen_write_operand(generator, instr->arg2);
+            }
             fprintf(generator->output_file, ";\n");
             break;
             
@@ -167,8 +181,27 @@ void codegen_generate_instruction(CodeGenerator* generator, IRInstruction* instr
             
         case IR_PRINT:
             codegen_write_indent(generator);
-            fprintf(generator->output_file, "printf(\"%%\" PRId64 \"\\n\", ");
-            codegen_write_operand(generator, instr->arg1);
+            fprintf(generator->output_file, "printf(\"");
+            if (instr->arg1) {
+                if (instr->arg1->is_float_const) {
+                    fprintf(generator->output_file, "%%f");
+                } else if (instr->arg1->data_type == TYPE_FLOAT || instr->arg1->data_type == TYPE_DOUBLE) {
+                    fprintf(generator->output_file, "%%f");
+                } else if (instr->arg1->data_type == TYPE_BOOL) {
+                    fprintf(generator->output_file, "%%s");
+                } else {
+                    fprintf(generator->output_file, "%%lld");
+                }
+            }
+            fprintf(generator->output_file, "\\n\", ");
+            if (instr->arg1) {
+                if (instr->arg1->is_float_const) {
+                    double float_value = (double)instr->arg1->data.const_value / 1000000.0;
+                    fprintf(generator->output_file, "%f", float_value);
+                } else {
+                    codegen_write_operand(generator, instr->arg1);
+                }
+            }
             fprintf(generator->output_file, ");\n");
             break;
         case IR_ARRAY_LOAD:
@@ -206,10 +239,8 @@ void codegen_generate_instruction(CodeGenerator* generator, IRInstruction* instr
             fprintf(generator->output_file, "}\n");
             break;
         case IR_ARRAY_DECL:
-            // Array declarations are handled in function header generation
             break;
         case IR_ARRAY_INIT:
-            // Generate a loop to initialize all array elements
             codegen_write_indent(generator);
             fprintf(generator->output_file, "for (int i = 0; i < %d; i++) {\n", instr->result->array_size);
             generator->indent_level++;
@@ -221,6 +252,29 @@ void codegen_generate_instruction(CodeGenerator* generator, IRInstruction* instr
             generator->indent_level--;
             codegen_write_indent(generator);
             fprintf(generator->output_file, "}\n");
+            break;
+        case IR_VAR_DECL:
+            if (instr->result && instr->result->type == IR_OP_VAR) {
+                codegen_write_indent(generator);
+                const char* c_type = get_c_type_string(instr->result->data_type);
+                fprintf(generator->output_file, "%s %s;\n", c_type, instr->result->data.var_name);
+            }
+            break;
+        case IR_EQ:
+        case IR_NE:
+        case IR_LT:
+        case IR_LE:
+        case IR_GT:
+        case IR_GE:
+        case IR_AND:
+        case IR_OR:
+            codegen_write_indent(generator);
+            codegen_write_operand(generator, instr->result);
+            fprintf(generator->output_file, " = ");
+            codegen_write_operand(generator, instr->arg1);
+            fprintf(generator->output_file, " %s ", ir_opcode_to_string(instr->opcode));
+            codegen_write_operand(generator, instr->arg2);
+            fprintf(generator->output_file, ";\n");
             break;
     }
 }
@@ -259,7 +313,12 @@ void codegen_write_operand(CodeGenerator* generator, IROperand* operand) {
             fprintf(generator->output_file, "%s", operand->data.var_name);
             break;
         case IR_OP_CONST:
-            fprintf(generator->output_file, "%lld", operand->data.const_value);
+            if (operand->is_float_const) {
+                double float_value = (double)operand->data.const_value / 1000000.0;
+                fprintf(generator->output_file, "%f", float_value);
+            } else {
+                fprintf(generator->output_file, "%lld", operand->data.const_value);
+            }
             break;
         case IR_OP_LABEL:
             fprintf(generator->output_file, "%s", operand->data.label_name);
@@ -292,6 +351,17 @@ void codegen_write_header(CodeGenerator* generator) {
     fprintf(generator->output_file, "#include <stdbool.h>\n");
     fprintf(generator->output_file, "#include <inttypes.h>\n");
     fprintf(generator->output_file, "\n");
+}
+
+const char* get_c_type_string(DataType type) {
+    switch (type) {
+        case TYPE_INT: return "int64_t";
+        case TYPE_BOOL: return "bool";
+        case TYPE_FLOAT: return "float";
+        case TYPE_DOUBLE: return "double";
+        case TYPE_ARRAY: return "int64_t";  
+        default: return "int64_t";
+    }
 }
 
 bool codegen_is_array_variable(CodeGenerator* generator, const char* var_name) {
@@ -335,7 +405,7 @@ int codegen_get_array_size(CodeGenerator* generator, const char* var_name) {
             }
         }
     }
-    return -1; // Not found
+    return -1; 
 }
 
 void codegen_write_function_header(CodeGenerator* generator, IRFunction* func) {
@@ -359,101 +429,24 @@ void codegen_write_function_header(CodeGenerator* generator, IRFunction* func) {
     
     generator->indent_level++;
     
-    for (size_t i = 0; i < func->instructions.size; i++) {
-        IRInstruction* instr = (IRInstruction*)array_get(&func->instructions, i);
-        
-        if (instr->opcode == IR_ARRAY_DECL && instr->result && instr->result->type == IR_OP_VAR) {
-            char* var_name = instr->result->data.var_name;
-            bool is_param = false;
-            for (size_t j = 0; j < func->params.size; j++) {
-                IROperand* param = (IROperand*)array_get(&func->params, j);
-                if (string_equal(var_name, param->data.var_name)) {
-                    is_param = true;
-                    break;
-                }
-            }
-            if (!is_param && !hashtable_get(generator->var_set, var_name)) {
-                hashtable_put(generator->var_set, var_name, (void*)1);
-                int array_size = instr->result->array_size;
-                if (array_size == -1) array_size = 5; // Fallback
-                codegen_write_line(generator, "int64_t %s[%d];", var_name, array_size);
-            }
-        }
-        
-        if (instr->result && instr->result->type == IR_OP_VAR) {
-            char* var_name = instr->result->data.var_name;
-            bool is_param = false;
-            for (size_t j = 0; j < func->params.size; j++) {
-                IROperand* param = (IROperand*)array_get(&func->params, j);
-                if (string_equal(var_name, param->data.var_name)) {
-                    is_param = true;
-                    break;
-                }
-            }
-            if (!is_param && !hashtable_get(generator->var_set, var_name)) {
-                hashtable_put(generator->var_set, var_name, (void*)1);
-                if (codegen_is_array_variable(generator, var_name)) {
-                    int array_size = codegen_get_array_size(generator, var_name);
-                    if (array_size == -1) array_size = 5; // Fallback
-                    codegen_write_line(generator, "int64_t %s[%d];", var_name, array_size);
-                } else {
-                    codegen_write_line(generator, "int64_t %s;", var_name);
-                }
-            }
-        }
-        
-        if (instr->arg1 && instr->arg1->type == IR_OP_VAR) {
-            char* var_name = instr->arg1->data.var_name;
-            bool is_param = false;
-            for (size_t j = 0; j < func->params.size; j++) {
-                IROperand* param = (IROperand*)array_get(&func->params, j);
-                if (string_equal(var_name, param->data.var_name)) {
-                    is_param = true;
-                    break;
-                }
-            }
-            if (!is_param && !hashtable_get(generator->var_set, var_name)) {
-                hashtable_put(generator->var_set, var_name, (void*)1);
-                if (codegen_is_array_variable(generator, var_name)) {
-                    int array_size = codegen_get_array_size(generator, var_name);
-                    if (array_size == -1) array_size = 5; // Fallback
-                    codegen_write_line(generator, "int64_t %s[%d];", var_name, array_size);
-                } else {
-                    codegen_write_line(generator, "int64_t %s;", var_name);
-                }
-            }
-        }
-        
-        if (instr->arg2 && instr->arg2->type == IR_OP_VAR) {
-            char* var_name = instr->arg2->data.var_name;
-            bool is_param = false;
-            for (size_t j = 0; j < func->params.size; j++) {
-                IROperand* param = (IROperand*)array_get(&func->params, j);
-                if (string_equal(var_name, param->data.var_name)) {
-                    is_param = true;
-                    break;
-                }
-            }
-            if (!is_param && !hashtable_get(generator->var_set, var_name)) {
-                hashtable_put(generator->var_set, var_name, (void*)1);
-                if (codegen_is_array_variable(generator, var_name)) {
-                    int array_size = codegen_get_array_size(generator, var_name);
-                    if (array_size == -1) array_size = 5; // Fallback
-                    codegen_write_line(generator, "int64_t %s[%d];", var_name, array_size);
-                } else {
-                    codegen_write_line(generator, "int64_t %s;", var_name);
-                }
-            }
-        }
-    }
-    
     for (int i = 0; i < func->temp_counter; i++) {
         char temp_name[32];
         snprintf(temp_name, sizeof(temp_name), "temp_%d", i);
-        codegen_write_line(generator, "int64_t %s;", temp_name);
+        DataType temp_type = TYPE_INT; 
+        for (size_t j = 0; j < func->instructions.size; j++) {
+            IRInstruction* instr = (IRInstruction*)array_get(&func->instructions, j);
+            if (instr->result && instr->result->type == IR_OP_TEMP && 
+                instr->result->data.temp_id == i) {
+                temp_type = instr->result->data_type;
+                break;
+            }
+        }
+        
+        const char* c_type = get_c_type_string(temp_type);
+        codegen_write_line(generator, "%s %s;", c_type, temp_name);
     }
     
-    if (func->temp_counter > 0 || generator->var_set->size > 0) {
+    if (func->temp_counter > 0) {
         fprintf(generator->output_file, "\n");
     }
 }

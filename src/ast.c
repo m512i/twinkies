@@ -7,6 +7,7 @@ Expr* expr_literal_number(int64_t value, int line, int column) {
     expr->column = column;
     expr->data.literal.value.number_value = value;
     expr->data.literal.is_bool_literal = false;
+    expr->data.literal.is_float_literal = false;
     return expr;
 }
 
@@ -17,6 +18,18 @@ Expr* expr_literal_bool(bool value, int line, int column) {
     expr->column = column;
     expr->data.literal.value.bool_value = value;
     expr->data.literal.is_bool_literal = true;
+    expr->data.literal.is_float_literal = false;
+    return expr;
+}
+
+Expr* expr_literal_float(double value, int line, int column) {
+    Expr* expr = safe_malloc(sizeof(Expr));
+    expr->type = EXPR_LITERAL;
+    expr->line = line;
+    expr->column = column;
+    expr->data.literal.value.float_value = value;
+    expr->data.literal.is_bool_literal = false;
+    expr->data.literal.is_float_literal = true;
     return expr;
 }
 
@@ -481,6 +494,8 @@ const char* data_type_to_string(DataType type) {
         case TYPE_BOOL: return "bool";
         case TYPE_VOID: return "void";
         case TYPE_ARRAY: return "array";
+        case TYPE_FLOAT: return "float";
+        case TYPE_DOUBLE: return "double";
         default: return "unknown";
     }
 }
@@ -489,6 +504,8 @@ DataType token_to_data_type(TLTokenType token_type) {
     switch (token_type) {
         case TOKEN_INT: return TYPE_INT;
         case TOKEN_BOOL: return TYPE_BOOL;
+        case TOKEN_FLOAT: return TYPE_FLOAT;
+        case TOKEN_DOUBLE: return TYPE_DOUBLE;
         default: return TYPE_VOID;
     }
 } 

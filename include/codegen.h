@@ -12,6 +12,11 @@ typedef struct {
 } ArrayInfo;
 
 typedef struct {
+    char* name;
+    DataType type;
+} VariableInfo;
+
+typedef struct {
     IRProgram* ir_program;
     FILE* output_file;
     Error* error;
@@ -20,6 +25,7 @@ typedef struct {
     HashTable* temp_map;
     HashTable* var_set;
     HashTable* array_info; 
+    HashTable* variable_types;  
     IROperand* params[MAX_PARAMS];
     int param_count;
     const char* current_function_name;

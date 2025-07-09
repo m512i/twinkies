@@ -17,7 +17,6 @@
 #include <sys/utsname.h>
 #endif
 
-// Function to get the target machine string dynamically
 const char* get_target_machine(void) {
     static char machine_string[256];
     
@@ -71,7 +70,6 @@ const char* get_target_machine(void) {
     return machine_string;
 }
 
-// Function to get the appropriate assembler command
 const char* get_assembler_command(void) {
 #ifdef _WIN32
     return "ml64 /c /Fo";
@@ -84,7 +82,6 @@ const char* get_assembler_command(void) {
 #endif
 }
 
-// Function to get the appropriate linker command
 const char* get_linker_command(void) {
 #ifdef _WIN32
     return "link /OUT:";
@@ -97,7 +94,6 @@ const char* get_linker_command(void) {
 #endif
 }
 
-// Function to get the dynamic linker path
 const char* get_dynamic_linker(void) {
 #ifdef _WIN32
     return "kernel32.dll";
@@ -411,7 +407,7 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
     }
     
     SemanticAnalyzer* analyzer = NULL;
-    if (program) {  // Only do semantic analysis if we have a program (even with parse errors)
+    if (program) { 
         analyzer = semantic_create(program, error_context);
         if (error.type != ERROR_NONE) {
             error_context_add_error(error_context, error.type, SEVERITY_ERROR, 

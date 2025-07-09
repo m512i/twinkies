@@ -4,6 +4,8 @@ IROperand* ir_operand_temp(int temp_id) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_TEMP;
     operand->array_size = -1;  
+    operand->is_float_const = false;
+    operand->data_type = TYPE_INT;  
     operand->data.temp_id = temp_id;
     return operand;
 }
@@ -12,6 +14,8 @@ IROperand* ir_operand_var(const char* var_name) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_VAR;
     operand->array_size = -1;  
+    operand->is_float_const = false;
+    operand->data_type = TYPE_INT;  
     operand->data.var_name = string_copy(var_name);
     return operand;
 }
@@ -20,6 +24,8 @@ IROperand* ir_operand_array_var(const char* var_name, int size) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_VAR;
     operand->array_size = size;  
+    operand->is_float_const = false;
+    operand->data_type = TYPE_ARRAY;
     operand->data.var_name = string_copy(var_name);
     return operand;
 }
@@ -28,7 +34,19 @@ IROperand* ir_operand_const(int64_t value) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_CONST;
     operand->array_size = -1;  
+    operand->is_float_const = false;
+    operand->data_type = TYPE_INT;
     operand->data.const_value = value;
+    return operand;
+}
+
+IROperand* ir_operand_float_const(double value) {
+    IROperand* operand = safe_malloc(sizeof(IROperand));
+    operand->type = IR_OP_CONST;
+    operand->array_size = -1;  
+    operand->is_float_const = true;
+    operand->data_type = TYPE_DOUBLE;
+    operand->data.const_value = (int64_t)(value * 1000000);
     return operand;
 }
 
@@ -36,6 +54,8 @@ IROperand* ir_operand_label(const char* label_name) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
     operand->type = IR_OP_LABEL;
     operand->array_size = -1;  
+    operand->is_float_const = false;
+    operand->data_type = TYPE_VOID;
     operand->data.label_name = string_copy(label_name);
     return operand;
 }
@@ -210,6 +230,18 @@ IRInstruction* ir_instruction_array_init(const char* array_name, int size, IROpe
     return instr;
 }
 
+IRInstruction* ir_instruction_var_decl(const char* var_name, DataType type) {
+    IRInstruction* instr = safe_malloc(sizeof(IRInstruction));
+    instr->opcode = IR_VAR_DECL;
+    IROperand* var = ir_operand_var(var_name);
+    var->data_type = type;
+    instr->result = var;
+    instr->arg1 = NULL;
+    instr->arg2 = NULL;
+    instr->label = NULL;
+    return instr;
+}
+
 IRFunction* ir_function_create(const char* name) {
     IRFunction* func = safe_malloc(sizeof(IRFunction));
     func->name = string_copy(name);
@@ -306,7 +338,12 @@ void ir_operand_print(const IROperand* operand) {
             printf("%s", operand->data.var_name);
             break;
         case IR_OP_CONST:
-            printf("%lld", operand->data.const_value);
+            if (operand->is_float_const) {
+                double float_value = (double)operand->data.const_value / 1000000.0;
+                printf("%f", float_value);
+            } else {
+                printf("%lld", operand->data.const_value);
+            }
             break;
         case IR_OP_LABEL:
             printf("%s", operand->data.label_name);
@@ -421,6 +458,10 @@ void ir_instruction_print(const IRInstruction* instr) {
             printf(" = ");
             ir_operand_print(instr->arg1);
             break;
+        case IR_VAR_DECL:
+            printf("VAR_DECL ");
+            ir_operand_print(instr->result);
+            break;
     }
     printf("\n");
 }
@@ -487,6 +528,7 @@ const char* ir_opcode_to_string(IROpcode opcode) {
         case IR_BOUNDS_CHECK: return "BOUNDS_CHECK";
         case IR_ARRAY_DECL: return "ARRAY_DECL";
         case IR_ARRAY_INIT: return "ARRAY_INIT";
+        case IR_VAR_DECL: return "VAR_DECL";
         default: return "UNKNOWN";
     }
 }
@@ -551,9 +593,13 @@ void ir_generate_statement(IRFunction* ir_func, Stmt* stmt, SemanticAnalyzer* an
             ir_generate_expression(ir_func, stmt->data.expr.expression, analyzer);
             break;
         case STMT_VAR_DECL:
+            IRInstruction* var_decl = ir_instruction_var_decl(stmt->data.var_decl.name, stmt->data.var_decl.type);
+            ir_function_add_instruction(ir_func, var_decl);
+            
             if (stmt->data.var_decl.initializer) {
                 IROperand* value = ir_generate_expression(ir_func, stmt->data.var_decl.initializer, analyzer);
                 IROperand* var = ir_operand_var(stmt->data.var_decl.name);
+                var->data_type = stmt->data.var_decl.type;
                 IRInstruction* move = ir_instruction_move(var, value);
                 ir_function_add_instruction(ir_func, move);
             }
@@ -683,15 +729,25 @@ IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr, SemanticAnaly
     
     switch (expr->type) {
         case EXPR_LITERAL:
-            return ir_operand_const(expr->data.literal.value.number_value);
+            if (expr->data.literal.is_float_literal) {
+                return ir_operand_float_const(expr->data.literal.value.float_value);
+            } else {
+                return ir_operand_const(expr->data.literal.value.number_value);
+            }
             
         case EXPR_VARIABLE: {
             int array_size = get_array_size(analyzer, expr->data.variable.name);
             printf("[DEBUG] Variable %s: array_size = %d\n", expr->data.variable.name, array_size);
             if (array_size != -1) {
-                return ir_operand_array_var(expr->data.variable.name, array_size);
+                IROperand* operand = ir_operand_array_var(expr->data.variable.name, array_size);
+                return operand;
             } else {
-                return ir_operand_var(expr->data.variable.name);
+                IROperand* operand = ir_operand_var(expr->data.variable.name);
+                Symbol* symbol = scope_resolve(analyzer, expr->data.variable.name);
+                if (symbol) {
+                    operand->data_type = symbol->data_type;
+                }
+                return operand;
             }
         }
             
@@ -718,6 +774,19 @@ IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr, SemanticAnaly
             }
             
             IROperand* result = ir_operand_temp(ir_function_new_temp(ir_func));
+            
+            if (opcode == IR_ADD || opcode == IR_SUB || opcode == IR_MUL || opcode == IR_DIV) {
+                if (left->data_type == TYPE_DOUBLE || right->data_type == TYPE_DOUBLE) {
+                    result->data_type = TYPE_DOUBLE;
+                } else if (left->data_type == TYPE_FLOAT || right->data_type == TYPE_FLOAT) {
+                    result->data_type = TYPE_FLOAT;
+                } else {
+                    result->data_type = TYPE_INT;
+                }
+            } else {
+                result->data_type = TYPE_BOOL;
+            }
+            
             IRInstruction* instr = ir_instruction_binary(opcode, result, left, right);
             ir_function_add_instruction(ir_func, instr);
             return result;
