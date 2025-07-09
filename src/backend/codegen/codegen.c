@@ -62,7 +62,6 @@ void codegen_generate_function(CodeGenerator* generator, IRFunction* func) {
     
     for (size_t i = 0; i < func->instructions.size; i++) {
         IRInstruction* instr = (IRInstruction*)array_get(&func->instructions, i);
-        // Skip IR_ARRAY_DECL and IR_VAR_DECL here, since they're now emitted at the top
         if (instr->opcode == IR_ARRAY_DECL || instr->opcode == IR_VAR_DECL) continue;
         codegen_generate_instruction(generator, instr);
     }
@@ -234,7 +233,6 @@ void codegen_generate_instruction(CodeGenerator* generator, IRInstruction* instr
             fprintf(generator->output_file, "}\n");
             break;
         case IR_ARRAY_DECL:
-            // This case is now handled in codegen_write_function_header
             break;
         case IR_ARRAY_INIT:
             codegen_write_indent(generator);
@@ -250,7 +248,6 @@ void codegen_generate_instruction(CodeGenerator* generator, IRInstruction* instr
             fprintf(generator->output_file, "}\n");
             break;
         case IR_VAR_DECL:
-            // This case is now handled in codegen_write_function_header
             break;
         case IR_EQ:
         case IR_NE:
@@ -344,11 +341,9 @@ void codegen_write_header(CodeGenerator* generator) {
     fprintf(generator->output_file, "#include <inttypes.h>\n");
     fprintf(generator->output_file, "\n");
     
-    // Emit function prototypes for all functions except main
     for (size_t i = 0; i < generator->ir_program->functions.size; i++) {
         IRFunction* func = (IRFunction*)array_get(&generator->ir_program->functions, i);
         if (!string_equal(func->name, "main")) {
-            // Get return type from the function
             DataType return_type = func->return_type;
             
             const char* return_type_str = get_c_type_string(return_type);
@@ -430,7 +425,6 @@ void codegen_write_function_header(CodeGenerator* generator, IRFunction* func) {
     if (string_equal(func->name, "main")) {
         fprintf(generator->output_file, "int main(void) {\n");
     } else {
-        // Use the function's return type
         DataType return_type = func->return_type;
         
         const char* return_type_str = get_c_type_string(return_type);
@@ -452,7 +446,6 @@ void codegen_write_function_header(CodeGenerator* generator, IRFunction* func) {
     
     generator->indent_level++;
     
-    // Emit all variable and array declarations at the top
     for (size_t j = 0; j < func->instructions.size; j++) {
         IRInstruction* instr = (IRInstruction*)array_get(&func->instructions, j);
         if (instr->opcode == IR_ARRAY_DECL) {
@@ -473,7 +466,6 @@ void codegen_write_function_header(CodeGenerator* generator, IRFunction* func) {
         char temp_name[32];
         snprintf(temp_name, sizeof(temp_name), "temp_%d", i);
         DataType temp_type = TYPE_INT; 
-        // Search all instructions for the first use of this temp and get its type
         for (size_t j = 0; j < func->instructions.size; j++) {
             IRInstruction* instr = (IRInstruction*)array_get(&func->instructions, j);
             if (instr->result && instr->result->type == IR_OP_TEMP && 
@@ -481,7 +473,6 @@ void codegen_write_function_header(CodeGenerator* generator, IRFunction* func) {
                 temp_type = instr->result->data_type;
                 break;
             }
-            // Also check arg1 and arg2 for IR_ARRAY_LOAD results
             if (instr->opcode == IR_ARRAY_LOAD) {
                 if (instr->result && instr->result->type == IR_OP_TEMP && instr->result->data.temp_id == i) {
                     temp_type = instr->result->data_type;

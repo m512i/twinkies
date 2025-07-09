@@ -17,7 +17,6 @@
 #include <sys/utsname.h>
 #endif
 
-// Global debug flag
 bool debug_enabled = false;
 
 void print_usage(const char* program_name);
@@ -1043,7 +1042,6 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
 }
 
 int main(int argc, char* argv[]) {
-    // Check for --debug flag
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--debug") == 0) {
             debug_enabled = true;

@@ -112,7 +112,7 @@ Symbol* scope_define(SemanticAnalyzer* analyzer, const char* name, SymbolType ty
 }
 
 Symbol* scope_define_array(SemanticAnalyzer* analyzer, const char* name, DataType element_type, int size) {
-    (void)element_type; // Suppress unused parameter warning
+    (void)element_type; 
     if (debug_enabled) { printf("[DEBUG] Defining array %s with size %d\n", name, size); }
     if (hashtable_contains(analyzer->current_scope->symbols, name)) {
         semantic_error_redefined(analyzer, name, 0, 0); 
@@ -427,7 +427,6 @@ DataType type_check_statement(SemanticAnalyzer* analyzer, Stmt* stmt) {
                 return TYPE_VOID;
             }
             
-            // Use the array variable's element_type if available
             DataType element_type = TYPE_INT;
             if (stmt->data.array_assignment.array->type == EXPR_VARIABLE) {
                 Symbol* symbol = scope_resolve(analyzer, stmt->data.array_assignment.array->data.variable.name);
@@ -525,7 +524,6 @@ bool type_check_assignment(SemanticAnalyzer* analyzer, DataType target_type, Dat
     if (target_type == value_type) {
         return true;
     }
-    // Allow implicit conversions between numeric types (with warnings)
     if (is_numeric_type(target_type) && is_numeric_type(value_type)) {
         semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
         return true;
@@ -817,14 +815,12 @@ static Symbol* resolve_function_overload(SemanticAnalyzer* analyzer, const char*
     while (scope) {
         DynamicArray* overloads = hashtable_get(scope->symbols, name);
         if (overloads) {
-            // First, try for exact match
             for (size_t i = 0; i < overloads->size; i++) {
                 Symbol* sym = (Symbol*)array_get(overloads, i);
                 if (parameter_list_equals(&sym->data.function.params, arg_types)) {
                     return sym;
                 }
             }
-            // Now, try for compatible match (using type_check_assignment)
             for (size_t i = 0; i < overloads->size; i++) {
                 Symbol* sym = (Symbol*)array_get(overloads, i);
                 if (sym->data.function.params.size != arg_types->size) continue;
@@ -846,7 +842,6 @@ static Symbol* resolve_function_overload(SemanticAnalyzer* analyzer, const char*
                         best_conversions = conversions;
                         best_match = sym;
                     } else if (conversions == best_conversions) {
-                        // Ambiguous: two overloads with same conversion cost
                         best_match = NULL;
                     }
                 }

@@ -257,7 +257,6 @@ static Token number(Lexer *lexer)
         }
     }
 
-    // Scientific notation support: [eE][+-]?[0-9]+
     if ((peek(lexer) == 'e' || peek(lexer) == 'E'))
     {
         is_float = true;
