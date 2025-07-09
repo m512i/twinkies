@@ -247,6 +247,12 @@ void codegenasm_generate_instruction(CodeGenerator* generator, IRInstruction* in
         case IR_BOUNDS_CHECK:
             codegenasm_bounds_check(generator, instr->arg1, instr->arg2, instr->label);
             break;
+        case IR_ARRAY_DECL:
+            break;
+        case IR_ARRAY_INIT:
+            break;
+        case IR_VAR_DECL:
+            break;
     }
 }
 

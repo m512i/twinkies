@@ -6,6 +6,8 @@ typedef struct {
     TLTokenType type;
 } Keyword;
 
+// Note: This array is kept for potential future optimization but currently unused
+// as identifier_type() uses direct string comparisons for simplicity
 static const Keyword keywords[] = {
     {"func", TOKEN_FUNC},
     {"let", TOKEN_LET},

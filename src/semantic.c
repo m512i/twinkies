@@ -111,6 +111,7 @@ Symbol* scope_define(SemanticAnalyzer* analyzer, const char* name, SymbolType ty
 }
 
 Symbol* scope_define_array(SemanticAnalyzer* analyzer, const char* name, DataType element_type, int size) {
+    (void)element_type; // Suppress unused parameter warning
     printf("[DEBUG] Defining array %s with size %d\n", name, size);
     if (hashtable_contains(analyzer->current_scope->symbols, name)) {
         semantic_error_redefined(analyzer, name, 0, 0); 

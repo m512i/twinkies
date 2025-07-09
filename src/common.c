@@ -1,6 +1,8 @@
 #include "../include/common.h"
 #include <stdarg.h>
 
+extern bool suppress_warnings;
+
 void error_init(Error* error) {
     error->type = ERROR_NONE;
     error->severity = SEVERITY_ERROR;
@@ -151,10 +153,16 @@ void error_context_print_all(ErrorContext* context) {
     for (size_t i = 0; i < context->count; i++) {
         if (context->errors[i].severity == SEVERITY_ERROR) {
             error_count++;
+            error_print(&context->errors[i], context->filename);
         } else if (context->errors[i].severity == SEVERITY_WARNING) {
             warning_count++;
+            extern bool suppress_warnings;
+            if (!suppress_warnings) {
+                error_print(&context->errors[i], context->filename);
+            }
+        } else {
+            error_print(&context->errors[i], context->filename);
         }
-        error_print(&context->errors[i], context->filename);
         if (i < context->count - 1) {
             fprintf(stderr, "\n");
         }
@@ -163,11 +171,11 @@ void error_context_print_all(ErrorContext* context) {
     if (error_count > 0) {
         fprintf(stderr, "\n%s" ANSI_BOLD "Compilation failed with %zu error(s)" ANSI_RESET, 
                 ANSI_ERROR, error_count);
-        if (warning_count > 0) {
+        if (warning_count > 0 && !suppress_warnings) {
             fprintf(stderr, " and %zu warning(s)", warning_count);
         }
         fprintf(stderr, "\n");
-    } else if (warning_count > 0) {
+    } else if (warning_count > 0 && !suppress_warnings) {
         fprintf(stderr, "\n%s" ANSI_BOLD "Compilation completed with %zu warning(s)" ANSI_RESET "\n", 
                 ANSI_WARNING, warning_count);
     }
@@ -185,6 +193,7 @@ bool error_context_has_errors(ErrorContext* context) {
 }
 
 void error_context_print_source_line(ErrorContext* context, int line, int column, int start, int end) {
+    (void)column; 
     if (!context || !context->source_code) return;
     
     char* source_line = get_source_line(context->source_code, line);

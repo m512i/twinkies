@@ -17,6 +17,167 @@
 #include <sys/utsname.h>
 #endif
 
+void print_usage(const char* program_name);
+const char* get_target_machine(void);
+const char* get_assembler_command(void);
+const char* get_linker_command(void);
+const char* get_dynamic_linker(void);
+void print_tokens(const char* source, const char* filename);
+void print_ast(const char* source, const char* filename);
+void print_ir(const char* source, const char* filename);
+void dump_ast_json(const char* source, const char* filename);
+void dump_stmt_json(Stmt* stmt, int indent);
+void dump_expr_json(Expr* expr, int indent);
+void print_json_indent(int indent);
+
+typedef struct {
+    const char* name;
+    void (*handler)(int* i, int argc, char* argv[], void* context);
+    const char* description;
+} Command;
+
+typedef struct {
+    const char* input_filename;
+    const char* output_filename;
+    bool print_tokens_flag;
+    bool print_ast_flag;
+    bool print_ir_flag;
+    bool dump_ast_flag;
+    bool verbose_flag;
+    bool assembly_output;
+    bool suppress_warnings;
+} CompilerContext;
+
+void handle_help(int* i, int argc, char* argv[], void* context) {
+    (void)i; (void)argc; (void)argv; (void)context;
+    print_usage(argv[0]);
+    exit(0);
+}
+
+void handle_dumpspecs(int* i, int argc, char* argv[], void* context) {
+    (void)i; (void)argc; (void)argv; (void)context;
+    printf("Spec strings for Twink Language Compiler:\n");
+    printf("  *cpp: %s -E -undef -traditional\n", argv[0]);
+    printf("  *cc1: %s -E -quiet -dumpbase %%B.dump -auxbase-strip %%s -o %%s\n", argv[0]);
+    printf("  *as: %s\n", get_assembler_command());
+    printf("  *ld: %s -dynamic-linker %s\n", get_linker_command(), get_dynamic_linker());
+    printf("  *link: %s -E -Bstatic -o %%s %%s %%s %%s\n", argv[0]);
+    exit(0);
+}
+
+void handle_dumpversion(int* i, int argc, char* argv[], void* context) {
+    (void)i; (void)argc; (void)argv; (void)context;
+    printf("1.0.0\n");
+    exit(0);
+}
+
+void handle_dumpmachine(int* i, int argc, char* argv[], void* context) {
+    (void)i; (void)argc; (void)argv; (void)context;
+    printf("%s\n", get_target_machine());
+    exit(0);
+}
+
+void handle_verbose(int* i, int argc, char* argv[], void* context) {
+    (void)i; (void)argc; (void)argv;
+    CompilerContext* ctx = (CompilerContext*)context;
+    ctx->verbose_flag = true;
+}
+
+void handle_tokens(int* i, int argc, char* argv[], void* context) {
+    (void)i; (void)argc; (void)argv;
+    CompilerContext* ctx = (CompilerContext*)context;
+    ctx->print_tokens_flag = true;
+}
+
+void handle_ast(int* i, int argc, char* argv[], void* context) {
+    (void)i; (void)argc; (void)argv;
+    CompilerContext* ctx = (CompilerContext*)context;
+    ctx->print_ast_flag = true;
+}
+
+void handle_ir(int* i, int argc, char* argv[], void* context) {
+    (void)i; (void)argc; (void)argv;
+    CompilerContext* ctx = (CompilerContext*)context;
+    ctx->print_ir_flag = true;
+}
+
+void handle_dump_ast_json(int* i, int argc, char* argv[], void* context) {
+    (void)i; (void)argc; (void)argv;
+    CompilerContext* ctx = (CompilerContext*)context;
+    ctx->dump_ast_flag = true;
+}
+
+void handle_no_warnings(int* i, int argc, char* argv[], void* context) {
+    (void)i; (void)argc; (void)argv;
+    CompilerContext* ctx = (CompilerContext*)context;
+    ctx->suppress_warnings = true;
+}
+
+void handle_output(int* i, int argc, char* argv[], void* context) {
+    CompilerContext* ctx = (CompilerContext*)context;
+    if (*i + 1 < argc) {
+        ctx->output_filename = argv[++(*i)];
+    } else {
+        print_error(argv[0], "missing output filename after -o");
+        exit(1);
+    }
+}
+
+void handle_asm(int* i, int argc, char* argv[], void* context) {
+    (void)i; (void)argc; (void)argv;
+    CompilerContext* ctx = (CompilerContext*)context;
+    ctx->assembly_output = true;
+}
+
+void handle_input_file(int* i, int argc, char* argv[], void* context) {
+    (void)argc; 
+    CompilerContext* ctx = (CompilerContext*)context;
+    if (!ctx->input_filename) {
+        ctx->input_filename = argv[*i];
+    } else {
+        print_error(argv[0], "unknown argument");
+        fprintf(stderr, "  %s\n", argv[*i]);
+        print_usage(argv[0]);
+        exit(1);
+    }
+}
+
+static const Command commands[] = {
+    {"--help", handle_help, "Show this help message"},
+    {"--dumpspecs", handle_dumpspecs, "Display all of the built in spec strings"},
+    {"--dumpversion", handle_dumpversion, "Display the version of the compiler"},
+    {"--dumpmachine", handle_dumpmachine, "Display the compiler's target processor"},
+    {"--v", handle_verbose, "Display the programs invoked by the compiler"},
+    {"--tokens", handle_tokens, "Print tokens from lexer"},
+    {"--ast", handle_ast, "Print AST from parser"},
+    {"--ir", handle_ir, "Print IR from semantic analysis"},
+    {"--dump-ast-json", handle_dump_ast_json, "Dump AST in JSON format"},
+    {"--no-warnings", handle_no_warnings, "Suppress warning messages"},
+    {"-o", handle_output, "Specify output file"},
+    {"--asm", handle_asm, "Generate assembly code instead of C"},
+    {NULL, handle_input_file, "Input file"}
+};
+
+void process_argument(int* i, int argc, char* argv[], CompilerContext* context) {
+    for (size_t j = 0; j < sizeof(commands) / sizeof(commands[0]); j++) {
+        if (commands[j].name == NULL) {
+            commands[j].handler(i, argc, argv, context);
+            return;
+        }
+        if (strcmp(argv[*i], commands[j].name) == 0) {
+            commands[j].handler(i, argc, argv, context);
+            return;
+        }
+    }
+    
+    print_error(argv[0], "unknown argument");
+    fprintf(stderr, "  %s\n", argv[*i]);
+    print_usage(argv[0]);
+    exit(1);
+}
+
+bool suppress_warnings = false;
+
 const char* get_target_machine(void) {
     static char machine_string[256];
     
@@ -149,16 +310,13 @@ void print_usage(const char* program_name) {
     printf("       %s <input_file> --ir\n", program_name);
     printf("\n");
     printf("Options:\n");
-    printf("  -o <output_file>    Specify output file (C or assembly)\n");
-    printf("  --asm               Generate assembly code instead of C\n");
-    printf("  --tokens            Print tokens from lexer\n");
-    printf("  --ast               Print AST from parser\n");
-    printf("  --ir                Print IR from semantic analysis\n");
-    printf("  --v                 Display the programs invoked by the compiler\n");
-    printf("  --dumpspecs         Display all of the built in spec strings\n");
-    printf("  --dumpversion       Display the version of the compiler\n");
-    printf("  --dumpmachine       Display the compiler's target processor\n");
-    printf("  --help              Show this help message\n");
+    
+    for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+        if (commands[i].name != NULL) {
+            printf("  %-20s %s\n", commands[i].name, commands[i].description);
+        }
+    }
+    
     printf("\n");
     printf("Note: Only files with .tl extension can be compiled.\n");
     fflush(stdout);
@@ -349,6 +507,328 @@ void print_ir(const char* source, const char* filename) {
     parser_destroy(parser);
     lexer_destroy(lexer);
     printf("[DEBUG] Exiting print_ir\n"); fflush(stdout);
+}
+
+void dump_ast_json(const char* source, const char* filename) {
+    printf("[DEBUG] Entered dump_ast_json\n"); fflush(stdout);
+    Error error;
+    error_init(&error);
+    
+    Lexer* lexer = lexer_create(source, &error);
+    if (error.type != ERROR_NONE) {
+        error_print(&error, filename);
+        lexer_destroy(lexer);
+        fflush(stdout);
+        return;
+    }
+    
+    ErrorContext* error_context = error_context_create(filename, source);
+    Parser* parser = parser_create(lexer, error_context);
+    if (error.type != ERROR_NONE) {
+        error_print(&error, filename);
+        error_context_destroy(error_context);
+        parser_destroy(parser);
+        lexer_destroy(lexer);
+        fflush(stdout);
+        return;
+    }
+    
+    Program* program = parser_parse(parser);
+    if (error.type != ERROR_NONE) {
+        error_print(&error, filename);
+        program_destroy(program);
+        error_context_destroy(error_context);
+        parser_destroy(parser);
+        lexer_destroy(lexer);
+        fflush(stdout);
+        return;
+    }
+    
+    printf("{\n");
+    printf("  \"ast\": {\n");
+    printf("    \"type\": \"program\",\n");
+    printf("    \"filename\": \"%s\",\n", filename);
+    printf("    \"functions\": [\n");
+    
+    for (size_t i = 0; i < program->functions.size; i++) {
+        Function* func = (Function*)array_get(&program->functions, i);
+        
+        printf("      {\n");
+        printf("        \"type\": \"function\",\n");
+        printf("        \"name\": \"%s\",\n", func->name);
+        printf("        \"return_type\": \"%s\",\n", data_type_to_string(func->return_type));
+        printf("        \"parameters\": [\n");
+        
+        for (size_t j = 0; j < func->params.size; j++) {
+            Parameter* param = (Parameter*)array_get(&func->params, j);
+            printf("          {\n");
+            printf("            \"name\": \"%s\",\n", param->name);
+            printf("            \"type\": \"%s\"\n", data_type_to_string(param->type));
+            printf("          }%s\n", j < func->params.size - 1 ? "," : "");
+        }
+        
+        printf("        ],\n");
+        printf("        \"body\": ");
+        dump_stmt_json(func->body, 8);
+        printf("\n      }%s\n", i < program->functions.size - 1 ? "," : "");
+    }
+    
+    printf("    ]\n");
+    printf("  }\n");
+    printf("}\n");
+    fflush(stdout);
+    
+    program_destroy(program);
+    error_context_destroy(error_context);
+    parser_destroy(parser);
+    lexer_destroy(lexer);
+    printf("[DEBUG] Exiting dump_ast_json\n"); fflush(stdout);
+}
+
+void dump_stmt_json(Stmt* stmt, int indent) {
+    if (!stmt) {
+        printf("null");
+        return;
+    }
+    
+    print_json_indent(indent);
+    printf("{\n");
+    
+    print_json_indent(indent + 2);
+    printf("\"type\": \"");
+    
+    switch (stmt->type) {
+        case STMT_EXPR:
+            printf("expression_statement\",\n");
+            print_json_indent(indent + 2);
+            printf("\"expression\": ");
+            dump_expr_json(stmt->data.expr.expression, indent + 4);
+            break;
+            
+        case STMT_VAR_DECL:
+            printf("variable_declaration\",\n");
+            print_json_indent(indent + 2);
+            printf("\"name\": \"%s\",\n", stmt->data.var_decl.name);
+            print_json_indent(indent + 2);
+            printf("\"data_type\": \"%s\",\n", data_type_to_string(stmt->data.var_decl.type));
+            if (stmt->data.var_decl.initializer) {
+                print_json_indent(indent + 2);
+                printf("\"initializer\": ");
+                dump_expr_json(stmt->data.var_decl.initializer, indent + 4);
+                printf(",\n");
+            }
+            break;
+            
+        case STMT_ARRAY_DECL:
+            printf("array_declaration\",\n");
+            print_json_indent(indent + 2);
+            printf("\"name\": \"%s\",\n", stmt->data.array_decl.name);
+            print_json_indent(indent + 2);
+            printf("\"element_type\": \"%s\",\n", data_type_to_string(stmt->data.array_decl.element_type));
+            print_json_indent(indent + 2);
+            printf("\"size\": %d", stmt->data.array_decl.size);
+            if (stmt->data.array_decl.initializer) {
+                printf(",\n");
+                print_json_indent(indent + 2);
+                printf("\"initializer\": ");
+                dump_expr_json(stmt->data.array_decl.initializer, indent + 4);
+            }
+            break;
+            
+        case STMT_ASSIGNMENT:
+            printf("assignment\",\n");
+            print_json_indent(indent + 2);
+            printf("\"target\": \"%s\",\n", stmt->data.assignment.name);
+            print_json_indent(indent + 2);
+            printf("\"value\": ");
+            dump_expr_json(stmt->data.assignment.value, indent + 4);
+            break;
+            
+        case STMT_ARRAY_ASSIGNMENT:
+            printf("array_assignment\",\n");
+            print_json_indent(indent + 2);
+            printf("\"array\": ");
+            dump_expr_json(stmt->data.array_assignment.array, indent + 4);
+            printf(",\n");
+            print_json_indent(indent + 2);
+            printf("\"index\": ");
+            dump_expr_json(stmt->data.array_assignment.index, indent + 4);
+            printf(",\n");
+            print_json_indent(indent + 2);
+            printf("\"value\": ");
+            dump_expr_json(stmt->data.array_assignment.value, indent + 4);
+            break;
+            
+        case STMT_IF:
+            printf("if_statement\",\n");
+            print_json_indent(indent + 2);
+            printf("\"condition\": ");
+            dump_expr_json(stmt->data.if_stmt.condition, indent + 4);
+            printf(",\n");
+            print_json_indent(indent + 2);
+            printf("\"then_branch\": ");
+            dump_stmt_json(stmt->data.if_stmt.then_branch, indent + 4);
+            if (stmt->data.if_stmt.else_branch) {
+                printf(",\n");
+                print_json_indent(indent + 2);
+                printf("\"else_branch\": ");
+                dump_stmt_json(stmt->data.if_stmt.else_branch, indent + 4);
+            }
+            break;
+            
+        case STMT_WHILE:
+            printf("while_statement\",\n");
+            print_json_indent(indent + 2);
+            printf("\"condition\": ");
+            dump_expr_json(stmt->data.while_stmt.condition, indent + 4);
+            printf(",\n");
+            print_json_indent(indent + 2);
+            printf("\"body\": ");
+            dump_stmt_json(stmt->data.while_stmt.body, indent + 4);
+            break;
+            
+        case STMT_RETURN:
+            printf("return_statement\"");
+            if (stmt->data.return_stmt.value) {
+                printf(",\n");
+                print_json_indent(indent + 2);
+                printf("\"value\": ");
+                dump_expr_json(stmt->data.return_stmt.value, indent + 4);
+            }
+            break;
+            
+        case STMT_PRINT:
+            printf("print_statement\",\n");
+            print_json_indent(indent + 2);
+            printf("\"value\": ");
+            dump_expr_json(stmt->data.print_stmt.value, indent + 4);
+            break;
+            
+        case STMT_BLOCK:
+            printf("block_statement\",\n");
+            print_json_indent(indent + 2);
+            printf("\"statements\": [\n");
+            for (size_t i = 0; i < stmt->data.block.statements.size; i++) {
+                Stmt* block_stmt = (Stmt*)array_get(&stmt->data.block.statements, i);
+                dump_stmt_json(block_stmt, indent + 4);
+                if (i < stmt->data.block.statements.size - 1) {
+                    printf(",");
+                }
+                printf("\n");
+            }
+            print_json_indent(indent + 2);
+            printf("]");
+            break;
+    }
+    
+    printf("\n");
+    print_json_indent(indent);
+    printf("}");
+}
+
+void dump_expr_json(Expr* expr, int indent) {
+    if (!expr) {
+        printf("null");
+        return;
+    }
+    
+    print_json_indent(indent);
+    printf("{\n");
+    
+    print_json_indent(indent + 2);
+    printf("\"type\": \"");
+    
+    switch (expr->type) {
+        case EXPR_LITERAL:
+            if (expr->data.literal.is_bool_literal) {
+                printf("boolean_literal\",\n");
+                print_json_indent(indent + 2);
+                printf("\"value\": %s", expr->data.literal.value.bool_value ? "true" : "false");
+            } else if (expr->data.literal.is_float_literal) {
+                printf("float_literal\",\n");
+                print_json_indent(indent + 2);
+                printf("\"value\": %f", expr->data.literal.value.float_value);
+            } else {
+                printf("integer_literal\",\n");
+                print_json_indent(indent + 2);
+                printf("\"value\": %lld", expr->data.literal.value.number_value);
+            }
+            break;
+            
+        case EXPR_VARIABLE:
+            printf("variable\",\n");
+            print_json_indent(indent + 2);
+            printf("\"name\": \"%s\"", expr->data.variable.name);
+            break;
+            
+        case EXPR_BINARY:
+            printf("binary_expression\",\n");
+            print_json_indent(indent + 2);
+            printf("\"operator\": \"%s\",\n", token_type_to_string(expr->data.binary.operator));
+            print_json_indent(indent + 2);
+            printf("\"left\": ");
+            dump_expr_json(expr->data.binary.left, indent + 4);
+            printf(",\n");
+            print_json_indent(indent + 2);
+            printf("\"right\": ");
+            dump_expr_json(expr->data.binary.right, indent + 4);
+            break;
+            
+        case EXPR_UNARY:
+            printf("unary_expression\",\n");
+            print_json_indent(indent + 2);
+            printf("\"operator\": \"%s\",\n", token_type_to_string(expr->data.unary.operator));
+            print_json_indent(indent + 2);
+            printf("\"operand\": ");
+            dump_expr_json(expr->data.unary.operand, indent + 4);
+            break;
+            
+        case EXPR_CALL:
+            printf("function_call\",\n");
+            print_json_indent(indent + 2);
+            printf("\"name\": \"%s\",\n", expr->data.call.name);
+            print_json_indent(indent + 2);
+            printf("\"arguments\": [\n");
+            for (size_t i = 0; i < expr->data.call.args.size; i++) {
+                Expr* arg = (Expr*)array_get(&expr->data.call.args, i);
+                dump_expr_json(arg, indent + 4);
+                if (i < expr->data.call.args.size - 1) {
+                    printf(",");
+                }
+                printf("\n");
+            }
+            print_json_indent(indent + 2);
+            printf("]");
+            break;
+            
+        case EXPR_GROUP:
+            printf("group_expression\",\n");
+            print_json_indent(indent + 2);
+            printf("\"expression\": ");
+            dump_expr_json(expr->data.group.expression, indent + 4);
+            break;
+            
+        case EXPR_ARRAY_INDEX:
+            printf("array_index\",\n");
+            print_json_indent(indent + 2);
+            printf("\"array\": ");
+            dump_expr_json(expr->data.array_index.array, indent + 4);
+            printf(",\n");
+            print_json_indent(indent + 2);
+            printf("\"index\": ");
+            dump_expr_json(expr->data.array_index.index, indent + 4);
+            break;
+    }
+    
+    printf("\n");
+    print_json_indent(indent);
+    printf("}");
+}
+
+void print_json_indent(int indent) {
+    for (int i = 0; i < indent; i++) {
+        printf(" ");
+    }
 }
 
 bool compile_file(const char* input_filename, const char* output_filename, bool verbose, bool assembly_output) {
@@ -546,113 +1026,70 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    const char* input_filename = NULL;
-    const char* output_filename = NULL;
-    bool print_tokens_flag = false;
-    bool print_ast_flag = false;
-    bool print_ir_flag = false;
-    bool verbose_flag = false;
-    bool assembly_output = false;
+    CompilerContext context = {NULL, NULL, false, false, false, false, false, false, false};
     
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--help") == 0) {
-            print_usage(argv[0]);
-            return 0;
-        } else if (strcmp(argv[i], "--dumpspecs") == 0) {
-            printf("Spec strings for Twink Language Compiler:\n");
-            printf("  *cpp: %s -E -undef -traditional\n", argv[0]);
-            printf("  *cc1: %s -E -quiet -dumpbase %%B.dump -auxbase-strip %%s -o %%s\n", argv[0]);
-            printf("  *as: %s\n", get_assembler_command());
-            printf("  *ld: %s -dynamic-linker %s\n", get_linker_command(), get_dynamic_linker());
-            printf("  *link: %s -E -Bstatic -o %%s %%s %%s %%s\n", argv[0]);
-            return 0;
-        } else if (strcmp(argv[i], "--dumpversion") == 0) {
-            printf("1.0.0\n");
-            return 0;
-        } else if (strcmp(argv[i], "--dumpmachine") == 0) {
-            printf("%s\n", get_target_machine());
-            return 0;
-        } else if (strcmp(argv[i], "--v") == 0) {
-            verbose_flag = true;
-        } else if (strcmp(argv[i], "--tokens") == 0) {
-            print_tokens_flag = true;
-        } else if (strcmp(argv[i], "--ast") == 0) {
-            print_ast_flag = true;
-        } else if (strcmp(argv[i], "--ir") == 0) {
-            print_ir_flag = true;
-        } else if (strcmp(argv[i], "-o") == 0) {
-            if (i + 1 < argc) {
-                output_filename = argv[++i];
-            } else {
-                print_error(argv[0], "missing output filename after -o");
-                return 1;
-            }
-        } else if (strcmp(argv[i], "--asm") == 0) {
-            assembly_output = true;
-        } else if (!input_filename) {
-            input_filename = argv[i];
-        } else {
-            print_error(argv[0], "unknown argument");
-            fprintf(stderr, "  %s\n", argv[i]);
-            print_usage(argv[0]);
-            return 1;
-        }
+        process_argument(&i, argc, argv, &context);
     }
     
-    if (!input_filename) {
+    if (!context.input_filename) {
         print_fatal_error(argv[0], "no input files");
         fprintf(stderr, "compilation terminated.\n");
         fflush(stderr);
         return 1;
     }
     
-    if (!has_tl_extension(input_filename)) {
+    if (!has_tl_extension(context.input_filename)) {
         print_error(argv[0], "only files with .tl extension can be compiled");
-        fprintf(stderr, "  %s\n", input_filename);
+        fprintf(stderr, "  %s\n", context.input_filename);
         return 1;
     }
     
-    char* source = read_file(input_filename);
+    char* source = read_file(context.input_filename);
     if (!source) {
         printf("[DEBUG] Failed to read source in main\n"); fflush(stdout);
         return 1;
     }
     
-    if (print_tokens_flag) {
-        print_tokens(source, input_filename);
-    } else if (print_ast_flag) {
-        print_ast(source, input_filename);
-    } else if (print_ir_flag) {
-        print_ir(source, input_filename);
+    if (context.print_tokens_flag) {
+        print_tokens(source, context.input_filename);
+    } else if (context.print_ast_flag) {
+        print_ast(source, context.input_filename);
+    } else if (context.print_ir_flag) {
+        print_ir(source, context.input_filename);
+    } else if (context.dump_ast_flag) {
+        dump_ast_json(source, context.input_filename);
     } else {
-        if (!output_filename) {
+        suppress_warnings = context.suppress_warnings;
+        
+        if (!context.output_filename) {
             print_error(argv[0], "output file not specified (use -o)");
             print_usage(argv[0]);
             safe_free(source);
             return 1;
         }
         
-        if (assembly_output) {
-            if (!has_asm_extension(output_filename)) {
+        if (context.assembly_output) {
+            if (!has_asm_extension(context.output_filename)) {
                 print_error(argv[0], "assembly output requires .s or .asm extension");
-                fprintf(stderr, "  %s\n", output_filename);
-                fprintf(stderr, "  Use: %s %s -o %s.s --asm\n", argv[0], input_filename, 
-                        output_filename[0] == '-' ? "output" : output_filename);
+                fprintf(stderr, "  %s\n", context.output_filename);
+                fprintf(stderr, "  Use: %s %s -o %s.s --asm\n", argv[0], context.input_filename, 
+                        context.output_filename[0] == '-' ? "output" : context.output_filename);
                 safe_free(source);
                 return 1;
             }
         } else {
-            if (!has_c_extension(output_filename)) {
+            if (!has_c_extension(context.output_filename)) {
                 print_error(argv[0], "C output requires .c extension");
-                fprintf(stderr, "  %s\n", output_filename);
-                fprintf(stderr, "  Use: %s %s -o %s.c\n", argv[0], input_filename, 
-                        output_filename[0] == '-' ? "output" : output_filename);
+                fprintf(stderr, "  %s\n", context.output_filename);
+                fprintf(stderr, "  Use: %s %s -o %s.c\n", argv[0], context.input_filename, 
+                        context.output_filename[0] == '-' ? "output" : context.output_filename);
                 safe_free(source);
                 return 1;
             }
         }
         
-        if (!compile_file(input_filename, output_filename, verbose_flag, assembly_output)) {
+        if (!compile_file(context.input_filename, context.output_filename, context.verbose_flag, context.assembly_output)) {
             safe_free(source);
             printf("[DEBUG] compile_file returned false\n"); fflush(stdout);
             return 1;
