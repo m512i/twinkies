@@ -2,7 +2,7 @@
 #define SEMANTIC_H
 
 #include "common.h"
-#include "ast.h"
+#include "frontend/ast.h"
 
 typedef enum {
     SYMBOL_VARIABLE,
@@ -16,6 +16,7 @@ typedef struct {
     DataType data_type;
     int scope_level;
     int array_size;  
+    DataType element_type; // For arrays: the element type
     bool is_used;   
     bool is_defined; 
     int definition_line; 

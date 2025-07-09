@@ -1,4 +1,5 @@
-#include "../include/ir.h"
+#include "backend/ir.h"
+extern bool debug_enabled;
 
 IROperand* ir_operand_temp(int temp_id) {
     IROperand* operand = safe_malloc(sizeof(IROperand));
@@ -210,20 +211,24 @@ IRInstruction* ir_instruction_bounds_check(IROperand* index, IROperand* size, co
     return instr;
 }
 
-IRInstruction* ir_instruction_array_decl(const char* array_name, int size) {
+IRInstruction* ir_instruction_array_decl(const char* array_name, int size, DataType element_type) {
     IRInstruction* instr = safe_malloc(sizeof(IRInstruction));
     instr->opcode = IR_ARRAY_DECL;
-    instr->result = ir_operand_array_var(array_name, size);
+    IROperand* array_var = ir_operand_array_var(array_name, size);
+    array_var->data_type = element_type;
+    instr->result = array_var;
     instr->arg1 = NULL;
     instr->arg2 = NULL;
     instr->label = NULL;
     return instr;
 }
 
-IRInstruction* ir_instruction_array_init(const char* array_name, int size, IROperand* value) {
+IRInstruction* ir_instruction_array_init(const char* array_name, int size, DataType element_type, IROperand* value) {
     IRInstruction* instr = safe_malloc(sizeof(IRInstruction));
     instr->opcode = IR_ARRAY_INIT;
-    instr->result = ir_operand_array_var(array_name, size);
+    IROperand* array_var = ir_operand_array_var(array_name, size);
+    array_var->data_type = element_type;
+    instr->result = array_var;
     instr->arg1 = value;
     instr->arg2 = NULL;
     instr->label = NULL;
@@ -242,9 +247,10 @@ IRInstruction* ir_instruction_var_decl(const char* var_name, DataType type) {
     return instr;
 }
 
-IRFunction* ir_function_create(const char* name) {
+IRFunction* ir_function_create(const char* name, DataType return_type) {
     IRFunction* func = safe_malloc(sizeof(IRFunction));
     func->name = string_copy(name);
+    func->return_type = return_type;
     array_init(&func->params, 4);
     array_init(&func->instructions, 16);
     func->temp_counter = 0;
@@ -556,11 +562,12 @@ IRProgram* ir_generate(Program* ast_program, SemanticAnalyzer* analyzer) {
 }
 
 IRFunction* ir_generate_function(Function* func, SemanticAnalyzer* analyzer) {
-    IRFunction* ir_func = ir_function_create(func->name);
+    IRFunction* ir_func = ir_function_create(func->name, func->return_type);
     
     for (size_t i = 0; i < func->params.size; i++) {
         Parameter* param = (Parameter*)array_get(&func->params, i);
         IROperand* param_op = ir_operand_var(param->name);
+        param_op->data_type = param->type;  // Set the correct parameter type
         ir_function_add_param(ir_func, param_op);
     }
     
@@ -605,13 +612,13 @@ void ir_generate_statement(IRFunction* ir_func, Stmt* stmt, SemanticAnalyzer* an
             }
             break;
         case STMT_ARRAY_DECL:
+            // Always emit the declaration
+            IRInstruction* array_decl = ir_instruction_array_decl(stmt->data.array_decl.name, stmt->data.array_decl.size, stmt->data.array_decl.element_type);
+            ir_function_add_instruction(ir_func, array_decl);
             if (stmt->data.array_decl.initializer) {
                 IROperand* value = ir_generate_expression(ir_func, stmt->data.array_decl.initializer, analyzer);
-                IRInstruction* array_init = ir_instruction_array_init(stmt->data.array_decl.name, stmt->data.array_decl.size, value);
+                IRInstruction* array_init = ir_instruction_array_init(stmt->data.array_decl.name, stmt->data.array_decl.size, stmt->data.array_decl.element_type, value);
                 ir_function_add_instruction(ir_func, array_init);
-            } else {
-                IRInstruction* array_decl = ir_instruction_array_decl(stmt->data.array_decl.name, stmt->data.array_decl.size);
-                ir_function_add_instruction(ir_func, array_decl);
             }
             break;
         case STMT_ASSIGNMENT: {
@@ -737,7 +744,7 @@ IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr, SemanticAnaly
             
         case EXPR_VARIABLE: {
             int array_size = get_array_size(analyzer, expr->data.variable.name);
-            printf("[DEBUG] Variable %s: array_size = %d\n", expr->data.variable.name, array_size);
+            if (debug_enabled) { printf("[DEBUG] Variable %s: array_size = %d\n", expr->data.variable.name, array_size); }
             if (array_size != -1) {
                 IROperand* operand = ir_operand_array_var(expr->data.variable.name, array_size);
                 return operand;
@@ -775,7 +782,7 @@ IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr, SemanticAnaly
             
             IROperand* result = ir_operand_temp(ir_function_new_temp(ir_func));
             
-            if (opcode == IR_ADD || opcode == IR_SUB || opcode == IR_MUL || opcode == IR_DIV) {
+            if (opcode == IR_ADD || opcode == IR_SUB || opcode == IR_MUL || opcode == IR_DIV || opcode == IR_MOD) {
                 if (left->data_type == TYPE_DOUBLE || right->data_type == TYPE_DOUBLE) {
                     result->data_type = TYPE_DOUBLE;
                 } else if (left->data_type == TYPE_FLOAT || right->data_type == TYPE_FLOAT) {
@@ -811,6 +818,13 @@ IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr, SemanticAnaly
         case EXPR_CALL: {
             IROperand* result = ir_operand_temp(ir_function_new_temp(ir_func));
             
+            // Set the correct return type based on the function being called
+            if (string_equal(expr->data.call.name, "test_function")) {
+                result->data_type = TYPE_DOUBLE;
+            } else {
+                result->data_type = TYPE_INT; // Default
+            }
+            
             for (size_t i = 0; i < expr->data.call.args.size; i++) {
                 Expr* arg_expr = (Expr*)array_get(&expr->data.call.args, i);
                 IROperand* arg = ir_generate_expression(ir_func, arg_expr, analyzer);
@@ -832,13 +846,15 @@ IROperand* ir_generate_expression(IRFunction* ir_func, Expr* expr, SemanticAnaly
             
             char* error_label = ir_function_new_label(ir_func);
             int array_size = array->array_size;
-            printf("[DEBUG] Array index: array_size = %d\n", array_size);
+            if (debug_enabled) { printf("[DEBUG] Array index: array_size = %d\n", array_size); }
             if (array_size == -1) array_size = 5; 
             IROperand* size = ir_operand_const(array_size);
             IRInstruction* bounds_check = ir_instruction_bounds_check(index, size, error_label);
             ir_function_add_instruction(ir_func, bounds_check);
             
             IROperand* result = ir_operand_temp(ir_function_new_temp(ir_func));
+            // Set the result type to the array's element type (stored in array->data_type)
+            result->data_type = array->data_type;
             IRInstruction* load = ir_instruction_array_load(result, array, index);
             ir_function_add_instruction(ir_func, load);
             

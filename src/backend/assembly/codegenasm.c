@@ -1,5 +1,6 @@
-#include "../include/codegen.h"
+#include "backend/codegen.h"
 #include <stdarg.h>
+extern bool debug_enabled;
 
 void codegenasm_write_text_section(CodeGenerator* generator);
 void codegenasm_write_data_section(CodeGenerator* generator);
@@ -62,27 +63,27 @@ void codegenasm_destroy(CodeGenerator* generator) {
 }
 
 bool codegenasm_generate(CodeGenerator* generator) {
-    printf("[DEBUG] Entered codegenasm_generate\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Entered codegenasm_generate\n"); fflush(stdout); }
     codegenasm_write_header(generator);
-    printf("[DEBUG] Wrote header\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Wrote header\n"); fflush(stdout); }
     codegenasm_generate_program(generator);
-    printf("[DEBUG] Generated program\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Generated program\n"); fflush(stdout); }
     return true;
 }
 
 void codegenasm_generate_program(CodeGenerator* generator) {
-    printf("[DEBUG] Entered codegenasm_generate_program\n"); fflush(stdout);
-    printf("[DEBUG] Number of functions: %zu\n", generator->ir_program->functions.size); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Entered codegenasm_generate_program\n"); fflush(stdout); }
+    if (debug_enabled) { printf("[DEBUG] Number of functions: %zu\n", generator->ir_program->functions.size); fflush(stdout); }
     
     codegenasm_write_data_section(generator);
-    printf("[DEBUG] Wrote data section\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Wrote data section\n"); fflush(stdout); }
     
     codegenasm_write_text_section(generator);
-    printf("[DEBUG] Wrote text section\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Wrote text section\n"); fflush(stdout); }
     
     for (size_t i = 0; i < generator->ir_program->functions.size; i++) {
         IRFunction* func = (IRFunction*)array_get(&generator->ir_program->functions, i);
-        printf("[DEBUG] Generating function: %s\n", func->name); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Generating function: %s\n", func->name); fflush(stdout); }
         codegenasm_generate_function(generator, func);
     }
     
@@ -96,16 +97,16 @@ void codegenasm_generate_program(CodeGenerator* generator) {
     }
     
     if (!has_main) {
-        printf("[DEBUG] Adding main function\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Adding main function\n"); fflush(stdout); }
         codegenasm_write_main_function(generator);
     }
     
-    printf("[DEBUG] Exiting codegenasm_generate_program\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Exiting codegenasm_generate_program\n"); fflush(stdout); }
 }
 
 void codegenasm_generate_function(CodeGenerator* generator, IRFunction* func) {
-    printf("[DEBUG] Entered codegenasm_generate_function for %s\n", func->name); fflush(stdout);
-    printf("[DEBUG] Number of instructions: %zu\n", func->instructions.size); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Entered codegenasm_generate_function for %s\n", func->name); fflush(stdout); }
+    if (debug_enabled) { printf("[DEBUG] Number of instructions: %zu\n", func->instructions.size); fflush(stdout); }
     
     generator->current_function_name = func->name;
     snprintf(generator->epilogue_label, sizeof(generator->epilogue_label), "%s_epilogue", func->name);
@@ -114,13 +115,13 @@ void codegenasm_generate_function(CodeGenerator* generator, IRFunction* func) {
     
     for (size_t i = 0; i < func->instructions.size; i++) {
         IRInstruction* instr = (IRInstruction*)array_get(&func->instructions, i);
-        printf("[DEBUG] Generating instruction %zu: %s\n", i, ir_opcode_to_string(instr->opcode)); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Generating instruction %zu: %s\n", i, ir_opcode_to_string(instr->opcode)); fflush(stdout); }
         codegenasm_generate_instruction(generator, instr);
     }
     
     fprintf(generator->output_file, "%s:\n", generator->epilogue_label);
     codegenasm_write_function_footer(generator);
-    printf("[DEBUG] Exiting codegenasm_generate_function for %s\n", func->name); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Exiting codegenasm_generate_function for %s\n", func->name); fflush(stdout); }
 }
 
 void codegenasm_generate_instruction(CodeGenerator* generator, IRInstruction* instr) {
@@ -466,22 +467,22 @@ char* codegenasm_get_operand_name(CodeGenerator* generator, IROperand* operand) 
 }
 
 char* codegenasm_get_temp_name(CodeGenerator* generator, IROperand* operand) {
-    printf("[DEBUG] Entered codegenasm_get_temp_name for temp_id: %d\n", operand->data.temp_id); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Entered codegenasm_get_temp_name for temp_id: %d\n", operand->data.temp_id); fflush(stdout); }
     
     char key_str[64];
     snprintf(key_str, sizeof(key_str), "%s_temp_%d", generator->current_function_name, operand->data.temp_id);
     
     char* temp_name = hashtable_get(generator->temp_map, key_str);
-    printf("[DEBUG] Looked up temp_name: %s\n", temp_name ? temp_name : "NULL"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Looked up temp_name: %s\n", temp_name ? temp_name : "NULL"); fflush(stdout); }
     if (!temp_name) {
-        printf("[DEBUG] Creating new temp name\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Creating new temp name\n"); fflush(stdout); }
         temp_name = safe_malloc(64);
         snprintf(temp_name, 64, "%s_temp_%d", generator->current_function_name, operand->data.temp_id);
-        printf("[DEBUG] Created temp name: %s\n", temp_name); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Created temp name: %s\n", temp_name); fflush(stdout); }
         hashtable_put(generator->temp_map, key_str, temp_name);
-        printf("[DEBUG] Stored temp name in hashtable\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Stored temp name in hashtable\n"); fflush(stdout); }
     }
-    printf("[DEBUG] Returning temp name: %s\n", temp_name); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Returning temp name: %s\n", temp_name); fflush(stdout); }
     return temp_name;
 }
 
@@ -493,7 +494,7 @@ char* codegenasm_get_const_name(CodeGenerator* generator, IROperand* operand) {
 }
 
 void codegenasm_write_header(CodeGenerator* generator) {
-    printf("[DEBUG] Wrote header\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Wrote header\n"); fflush(stdout); }
     fprintf(generator->output_file, "; Generated assembly code for .tl language\n");
     fprintf(generator->output_file, "; Target: x86-64 Windows\n\n");
     fprintf(generator->output_file, "extern __imp_printf\n");
@@ -501,7 +502,7 @@ void codegenasm_write_header(CodeGenerator* generator) {
 }
 
 void codegenasm_write_data_section(CodeGenerator* generator) {
-    printf("[DEBUG] Entered codegenasm_write_data_section\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Entered codegenasm_write_data_section\n"); fflush(stdout); }
     fprintf(generator->output_file, "section .data\n");
     fprintf(generator->output_file, "format_int: db \"%%ld\", 10, 0\n");
     
@@ -518,27 +519,27 @@ void codegenasm_write_data_section(CodeGenerator* generator) {
     fprintf(generator->output_file, "const_42: dq 42\n");
     fprintf(generator->output_file, "const_48: dq 48\n");
     
-    printf("[DEBUG] Wrote format_int\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Wrote format_int\n"); fflush(stdout); }
     
     for (size_t i = 0; i < generator->ir_program->functions.size; i++) {
         IRFunction* func = (IRFunction*)array_get(&generator->ir_program->functions, i);
-        printf("[DEBUG] Processing function %s for data section\n", func->name); fflush(stdout);
-        printf("[DEBUG] Function %s has %zu instructions\n", func->name, func->instructions.size); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Processing function %s for data section\n", func->name); fflush(stdout); }
+        if (debug_enabled) { printf("[DEBUG] Function %s has %zu instructions\n", func->name, func->instructions.size); fflush(stdout); }
         generator->current_function_name = func->name;
         fprintf(generator->output_file, "%s_param: dq 0\n", func->name);
         for (size_t j = 0; j < func->instructions.size; j++) {
-            printf("[DEBUG] Processing instruction %zu in function %s\n", j, func->name); fflush(stdout);
+            if (debug_enabled) { printf("[DEBUG] Processing instruction %zu in function %s\n", j, func->name); fflush(stdout); }
             IRInstruction* instr = (IRInstruction*)array_get(&func->instructions, j);
-            printf("[DEBUG] Instruction opcode: %s\n", ir_opcode_to_string(instr->opcode)); fflush(stdout);
+            if (debug_enabled) { printf("[DEBUG] Instruction opcode: %s\n", ir_opcode_to_string(instr->opcode)); fflush(stdout); }
             if (instr->result && instr->result->type == IR_OP_TEMP) {
-                printf("[DEBUG] Processing result temp\n"); fflush(stdout);
+                if (debug_enabled) { printf("[DEBUG] Processing result temp\n"); fflush(stdout); }
                 char* temp_name = codegenasm_get_temp_name(generator, instr->result);
                 if (!hashtable_get(generator->declared_temps, temp_name)) {
                     fprintf(generator->output_file, "%s: dq 0\n", temp_name);
                     hashtable_put(generator->declared_temps, temp_name, (void*)1); 
-                    printf("[DEBUG] Declared temp: %s\n", temp_name); fflush(stdout);
+                    if (debug_enabled) { printf("[DEBUG] Declared temp: %s\n", temp_name); fflush(stdout); }
                 } else {
-                    printf("[DEBUG] Temp already declared: %s\n", temp_name); fflush(stdout);
+                    if (debug_enabled) { printf("[DEBUG] Temp already declared: %s\n", temp_name); fflush(stdout); }
                 }
             }
             if (instr->result && instr->result->type == IR_OP_VAR) {
@@ -554,18 +555,18 @@ void codegenasm_write_data_section(CodeGenerator* generator) {
                 if (!is_param && !hashtable_get(generator->declared_temps, var_name)) {
                     fprintf(generator->output_file, "%s: dq 0\n", var_name);
                     hashtable_put(generator->declared_temps, var_name, (void*)1);
-                    printf("[DEBUG] Declared var: %s\n", var_name); fflush(stdout);
+                    if (debug_enabled) { printf("[DEBUG] Declared var: %s\n", var_name); fflush(stdout); }
                 }
             }
             if (instr->arg1 && instr->arg1->type == IR_OP_TEMP) {
-                printf("[DEBUG] Processing arg1 temp\n"); fflush(stdout);
+                if (debug_enabled) { printf("[DEBUG] Processing arg1 temp\n"); fflush(stdout); }
                 char* temp_name = codegenasm_get_temp_name(generator, instr->arg1);
                 if (!hashtable_get(generator->declared_temps, temp_name)) {
                     fprintf(generator->output_file, "%s: dq 0\n", temp_name);
                     hashtable_put(generator->declared_temps, temp_name, (void*)1); 
-                    printf("[DEBUG] Declared temp: %s\n", temp_name); fflush(stdout);
+                    if (debug_enabled) { printf("[DEBUG] Declared temp: %s\n", temp_name); fflush(stdout); }
                 } else {
-                    printf("[DEBUG] Temp already declared: %s\n", temp_name); fflush(stdout);
+                    if (debug_enabled) { printf("[DEBUG] Temp already declared: %s\n", temp_name); fflush(stdout); }
                 }
             }
             if (instr->arg1 && instr->arg1->type == IR_OP_VAR) {
@@ -581,18 +582,18 @@ void codegenasm_write_data_section(CodeGenerator* generator) {
                 if (!is_param && !hashtable_get(generator->declared_temps, var_name)) {
                     fprintf(generator->output_file, "%s: dq 0\n", var_name);
                     hashtable_put(generator->declared_temps, var_name, (void*)1);
-                    printf("[DEBUG] Declared var: %s\n", var_name); fflush(stdout);
+                    if (debug_enabled) { printf("[DEBUG] Declared var: %s\n", var_name); fflush(stdout); }
                 }
             }
             if (instr->arg2 && instr->arg2->type == IR_OP_TEMP) {
-                printf("[DEBUG] Processing arg2 temp\n"); fflush(stdout);
+                if (debug_enabled) { printf("[DEBUG] Processing arg2 temp\n"); fflush(stdout); }
                 char* temp_name = codegenasm_get_temp_name(generator, instr->arg2);
                 if (!hashtable_get(generator->declared_temps, temp_name)) {
                     fprintf(generator->output_file, "%s: dq 0\n", temp_name);
                     hashtable_put(generator->declared_temps, temp_name, (void*)1); 
-                    printf("[DEBUG] Declared temp: %s\n", temp_name); fflush(stdout);
+                    if (debug_enabled) { printf("[DEBUG] Declared temp: %s\n", temp_name); fflush(stdout); }
                 } else {
-                    printf("[DEBUG] Temp already declared: %s\n", temp_name); fflush(stdout);
+                    if (debug_enabled) { printf("[DEBUG] Temp already declared: %s\n", temp_name); fflush(stdout); }
                 }
             }
             if (instr->arg2 && instr->arg2->type == IR_OP_VAR) {
@@ -608,17 +609,17 @@ void codegenasm_write_data_section(CodeGenerator* generator) {
                 if (!is_param && !hashtable_get(generator->declared_temps, var_name)) {
                     fprintf(generator->output_file, "%s: dq 0\n", var_name);
                     hashtable_put(generator->declared_temps, var_name, (void*)1);
-                    printf("[DEBUG] Declared var: %s\n", var_name); fflush(stdout);
+                    if (debug_enabled) { printf("[DEBUG] Declared var: %s\n", var_name); fflush(stdout); }
                 }
             }
         }
-        printf("[DEBUG] Finished processing function %s\n", func->name); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Finished processing function %s\n", func->name); fflush(stdout); }
     }
-    printf("[DEBUG] Exiting codegenasm_write_data_section\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Exiting codegenasm_write_data_section\n"); fflush(stdout); }
 }
 
 void codegenasm_write_text_section(CodeGenerator* generator) {
-    printf("[DEBUG] Wrote data section\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Wrote data section\n"); fflush(stdout); }
     fprintf(generator->output_file, "\nsection .text\n");
     fprintf(generator->output_file, "global _start\n\n");
     

@@ -2,8 +2,8 @@
 #define IR_H
 
 #include "common.h"
-#include "ast.h"
-#include "semantic.h"
+#include "frontend/ast.h"
+#include "analysis/semantic.h"
 
 typedef enum {
     IR_NOP,
@@ -70,6 +70,7 @@ typedef struct {
 
 typedef struct {
     char* name;
+    DataType return_type;
     DynamicArray params; 
     DynamicArray instructions; 
     int temp_counter;
@@ -102,10 +103,10 @@ IRInstruction* ir_instruction_print_op(IROperand* value);
 IRInstruction* ir_instruction_array_load(IROperand* result, IROperand* array, IROperand* index);
 IRInstruction* ir_instruction_array_store(IROperand* array, IROperand* index, IROperand* value);
 IRInstruction* ir_instruction_bounds_check(IROperand* index, IROperand* size, const char* error_label);
-IRInstruction* ir_instruction_array_decl(const char* array_name, int size);
-IRInstruction* ir_instruction_array_init(const char* array_name, int size, IROperand* value);
+IRInstruction* ir_instruction_array_decl(const char* array_name, int size, DataType element_type);
+IRInstruction* ir_instruction_array_init(const char* array_name, int size, DataType element_type, IROperand* value);
 
-IRFunction* ir_function_create(const char* name);
+IRFunction* ir_function_create(const char* name, DataType return_type);
 IRProgram* ir_program_create(void);
 
 IRProgram* ir_generate(Program* ast_program, SemanticAnalyzer* analyzer);

@@ -1,4 +1,5 @@
-#include "../include/parser.h"
+#include "frontend/parser.h"
+extern bool debug_enabled;
 
 Expr* finish_call(Parser* parser, Expr* callee);
 Expr* finish_array_index(Parser* parser, Expr* array);
@@ -282,32 +283,32 @@ Expr* finish_array_index(Parser* parser, Expr* array) {
 }
 
 Stmt* parse_statement(Parser* parser) {
-    printf("[DEBUG] Entered parse_statement, token: %s\n", token_type_to_string(parser->current.type)); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Entered parse_statement, token: %s\n", token_type_to_string(parser->current.type)); fflush(stdout); }
     Stmt* result = NULL;
     
     if (parser_match(parser, TOKEN_LET)) {
-        printf("[DEBUG] Parsing var declaration\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Parsing var declaration\n"); fflush(stdout); }
         result = parse_var_declaration(parser);
     } else if (parser_match(parser, TOKEN_IF)) {
-        printf("[DEBUG] Parsing if statement\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Parsing if statement\n"); fflush(stdout); }
         result = parse_if_statement(parser);
     } else if (parser_match(parser, TOKEN_WHILE)) {
-        printf("[DEBUG] Parsing while statement\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Parsing while statement\n"); fflush(stdout); }
         result = parse_while_statement(parser);
     } else if (parser_match(parser, TOKEN_RETURN)) {
-        printf("[DEBUG] Parsing return statement\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Parsing return statement\n"); fflush(stdout); }
         result = parse_return_statement(parser);
     } else if (parser_match(parser, TOKEN_PRINT)) {
-        printf("[DEBUG] Parsing print statement\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Parsing print statement\n"); fflush(stdout); }
         result = parse_print_statement(parser);
     } else if (parser_match(parser, TOKEN_LBRACE)) {
-        printf("[DEBUG] Parsing block\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Parsing block\n"); fflush(stdout); }
         result = parse_block(parser);
     } else if (parser_check(parser, TOKEN_IDENTIFIER)) {
-        printf("[DEBUG] Parsing assignment or expression statement\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Parsing assignment or expression statement\n"); fflush(stdout); }
         result = parse_assignment(parser);
     } else {
-        printf("[DEBUG] Parsing expression statement\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Parsing expression statement\n"); fflush(stdout); }
         result = parse_expression_statement(parser);
     }
     
@@ -315,7 +316,7 @@ Stmt* parse_statement(Parser* parser) {
         parser_reset_error_count(parser);
     }
     
-    printf("[DEBUG] Exiting parse_statement\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Exiting parse_statement\n"); fflush(stdout); }
     return result;
 }
 
@@ -406,37 +407,37 @@ Stmt* parse_assignment(Parser* parser) {
 }
 
 Stmt* parse_if_statement(Parser* parser) {
-    printf("[DEBUG] Entered parse_if_statement\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Entered parse_if_statement\n"); fflush(stdout); }
     parser_consume(parser, TOKEN_LPAREN, "Expect '(' after 'if'.");
-    printf("[DEBUG] Got LPAREN after if\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Got LPAREN after if\n"); fflush(stdout); }
     Expr* condition = parse_expression(parser);
-    printf("[DEBUG] Parsed condition\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Parsed condition\n"); fflush(stdout); }
     parser_consume(parser, TOKEN_RPAREN, "Expect ')' after if condition.");
-    printf("[DEBUG] Got RPAREN after condition\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Got RPAREN after condition\n"); fflush(stdout); }
     
     Stmt* then_branch;
     if (parser_match(parser, TOKEN_LBRACE)) {
-        printf("[DEBUG] Parsing then branch as block\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Parsing then branch as block\n"); fflush(stdout); }
         then_branch = parse_block(parser);
     } else {
-        printf("[DEBUG] Parsing then branch as single statement\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Parsing then branch as single statement\n"); fflush(stdout); }
         then_branch = parse_statement(parser);
     }
-    printf("[DEBUG] Parsed then branch\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Parsed then branch\n"); fflush(stdout); }
     
     Stmt* else_branch = NULL;
     if (parser_match(parser, TOKEN_ELSE)) {
-        printf("[DEBUG] Found else branch\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Found else branch\n"); fflush(stdout); }
         if (parser_match(parser, TOKEN_LBRACE)) {
-            printf("[DEBUG] Parsing else branch as block\n"); fflush(stdout);
+            if (debug_enabled) { printf("[DEBUG] Parsing else branch as block\n"); fflush(stdout); }
             else_branch = parse_block(parser);
         } else {
-            printf("[DEBUG] Parsing else branch as single statement\n"); fflush(stdout);
+            if (debug_enabled) { printf("[DEBUG] Parsing else branch as single statement\n"); fflush(stdout); }
             else_branch = parse_statement(parser);
         }
     }
     
-    printf("[DEBUG] Exiting parse_if_statement\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Exiting parse_if_statement\n"); fflush(stdout); }
     return stmt_if(condition, then_branch, else_branch, 
                   parser->previous.line, parser->previous.column);
 }
@@ -486,38 +487,38 @@ Stmt* parse_expression_statement(Parser* parser) {
 }
 
 Stmt* parse_block(Parser* parser) {
-    printf("[DEBUG] Entered parse_block\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Entered parse_block\n"); fflush(stdout); }
     Stmt* block = stmt_block(parser->previous.line, parser->previous.column);
     
     while (!parser_check(parser, TOKEN_RBRACE) && !parser_check(parser, TOKEN_EOF)) {
-        printf("[DEBUG] Parsing statement, current token: %s\n", token_type_to_string(parser->current.type)); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Parsing statement, current token: %s\n", token_type_to_string(parser->current.type)); fflush(stdout); }
         Stmt* stmt = parse_statement(parser);
         if (stmt) {
             stmt_add_block_stmt(block, stmt);
-            printf("[DEBUG] Added statement to block\n"); fflush(stdout);
+            if (debug_enabled) { printf("[DEBUG] Added statement to block\n"); fflush(stdout); }
         } else {
-            printf("[DEBUG] Failed to parse statement\n"); fflush(stdout);
+            if (debug_enabled) { printf("[DEBUG] Failed to parse statement\n"); fflush(stdout); }
             break;
         }
     }
     
-    printf("[DEBUG] Exiting block, consuming RBRACE\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Exiting block, consuming RBRACE\n"); fflush(stdout); }
     if (!parser_match(parser, TOKEN_RBRACE)) {
         parser_error(parser, "Expect '}' after block.");
         parser_synchronize(parser);
     }
-    printf("[DEBUG] Exiting parse_block\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Exiting parse_block\n"); fflush(stdout); }
     return block;
 }
 
 Function* parse_function(Parser* parser) {
-    printf("[DEBUG] Entered parse_function\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Entered parse_function\n"); fflush(stdout); }
     parser_consume(parser, TOKEN_IDENTIFIER, "Expect function name.");
     char* name = string_copy(parser->previous.lexeme);
-    printf("[DEBUG] Function name: %s\n", name); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Function name: %s\n", name); fflush(stdout); }
     
     parser_consume(parser, TOKEN_LPAREN, "Expect '(' after function name.");
-    printf("[DEBUG] Got LPAREN\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Got LPAREN\n"); fflush(stdout); }
     
     Function* function = function_create(name, TYPE_INT); 
     if (!parser_check(parser, TOKEN_RPAREN)) {
@@ -530,33 +531,33 @@ Function* parse_function(Parser* parser) {
     }
     
     parser_consume(parser, TOKEN_RPAREN, "Expect ')' after parameters.");
-    printf("[DEBUG] Got RPAREN\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Got RPAREN\n"); fflush(stdout); }
     parser_consume(parser, TOKEN_ARROW, "Expect '->' after function parameters.");
-    printf("[DEBUG] Got ARROW\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Got ARROW\n"); fflush(stdout); }
     
     if (parser_match(parser, TOKEN_INT)) {
         function->return_type = TYPE_INT;
-        printf("[DEBUG] Return type: INT\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Return type: INT\n"); fflush(stdout); }
     } else if (parser_match(parser, TOKEN_BOOL)) {
         function->return_type = TYPE_BOOL;
-        printf("[DEBUG] Return type: BOOL\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Return type: BOOL\n"); fflush(stdout); }
     } else if (parser_match(parser, TOKEN_FLOAT)) {
         function->return_type = TYPE_FLOAT;
-        printf("[DEBUG] Return type: FLOAT\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Return type: FLOAT\n"); fflush(stdout); }
     } else if (parser_match(parser, TOKEN_DOUBLE)) {
         function->return_type = TYPE_DOUBLE;
-        printf("[DEBUG] Return type: DOUBLE\n"); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Return type: DOUBLE\n"); fflush(stdout); }
     } else {
-        printf("[DEBUG] Expected return type, got: %s\n", token_type_to_string(parser->current.type)); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Expected return type, got: %s\n", token_type_to_string(parser->current.type)); fflush(stdout); }
         parser_error(parser, "Expect return type.");
         function_destroy(function);
         return NULL;
     }
     
     parser_consume(parser, TOKEN_LBRACE, "Expect '{' before function body.");
-    printf("[DEBUG] Got LBRACE, parsing body\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Got LBRACE, parsing body\n"); fflush(stdout); }
     function->body = parse_block(parser);
-    printf("[DEBUG] Finished parsing function body\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Finished parsing function body\n"); fflush(stdout); }
     
     return function;
 }
@@ -584,28 +585,28 @@ Parameter* parse_parameter(Parser* parser) {
 }
 
 Program* parser_parse(Parser* parser) {
-    printf("[DEBUG] Entered parser_parse\n"); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Entered parser_parse\n"); fflush(stdout); }
     Program* program = program_create();
     
     while (!parser_check(parser, TOKEN_EOF)) {
-        printf("[DEBUG] Current token: %s\n", token_type_to_string(parser->current.type)); fflush(stdout);
+        if (debug_enabled) { printf("[DEBUG] Current token: %s\n", token_type_to_string(parser->current.type)); fflush(stdout); }
         if (parser_match(parser, TOKEN_FUNC)) {
-            printf("[DEBUG] Parsing function\n"); fflush(stdout);
+            if (debug_enabled) { printf("[DEBUG] Parsing function\n"); fflush(stdout); }
             Function* func = parse_function(parser);
             if (func) {
                 program_add_function(program, func);
-                printf("[DEBUG] Added function to program\n"); fflush(stdout);
+                if (debug_enabled) { printf("[DEBUG] Added function to program\n"); fflush(stdout); }
             } else {
-                printf("[DEBUG] Failed to parse function\n"); fflush(stdout);
+                if (debug_enabled) { printf("[DEBUG] Failed to parse function\n"); fflush(stdout); }
                 break;
             }
         } else {
-            printf("[DEBUG] Expected function declaration, got: %s\n", token_type_to_string(parser->current.type)); fflush(stdout);
+            if (debug_enabled) { printf("[DEBUG] Expected function declaration, got: %s\n", token_type_to_string(parser->current.type)); fflush(stdout); }
             parser_error(parser, "Expect function declaration.");
             break;
         }
     }
     
-    printf("[DEBUG] Exiting parser_parse, had_error: %d\n", parser->had_error); fflush(stdout);
+    if (debug_enabled) { printf("[DEBUG] Exiting parser_parse, had_error: %d\n", parser->had_error); fflush(stdout); }
     return program;
 } 

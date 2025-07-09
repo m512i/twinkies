@@ -1,4 +1,4 @@
-#include "../include/ast.h"
+#include "frontend/ast.h"
 
 Expr* expr_literal_number(int64_t value, int line, int column) {
     Expr* expr = safe_malloc(sizeof(Expr));

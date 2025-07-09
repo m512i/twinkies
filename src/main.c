@@ -1,10 +1,10 @@
-#include "../include/common.h"
-#include "../include/lexer.h"
-#include "../include/parser.h"
-#include "../include/ast.h"
-#include "../include/semantic.h"
-#include "../include/ir.h"
-#include "../include/codegen.h"
+#include "common.h"
+#include "frontend/lexer.h"
+#include "frontend/parser.h"
+#include "frontend/ast.h"
+#include "analysis/semantic.h"
+#include "backend/ir.h"
+#include "backend/codegen.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +16,9 @@
 #elif defined(__APPLE__)
 #include <sys/utsname.h>
 #endif
+
+// Global debug flag
+bool debug_enabled = false;
 
 void print_usage(const char* program_name);
 const char* get_target_machine(void);
@@ -142,6 +145,11 @@ void handle_input_file(int* i, int argc, char* argv[], void* context) {
     }
 }
 
+void handle_debug(int* i, int argc, char* argv[], void* context) {
+    (void)i; (void)argc; (void)argv; (void)context;
+    debug_enabled = true;
+}
+
 static const Command commands[] = {
     {"--help", handle_help, "Show this help message"},
     {"--dumpspecs", handle_dumpspecs, "Display all of the built in spec strings"},
@@ -155,6 +163,7 @@ static const Command commands[] = {
     {"--no-warnings", handle_no_warnings, "Suppress warning messages"},
     {"-o", handle_output, "Specify output file"},
     {"--asm", handle_asm, "Generate assembly code instead of C"},
+    {"--debug", handle_debug, "Enable debug output"},
     {NULL, handle_input_file, "Input file"}
 };
 
@@ -316,7 +325,6 @@ void print_usage(const char* program_name) {
             printf("  %-20s %s\n", commands[i].name, commands[i].description);
         }
     }
-    
     printf("\n");
     printf("Note: Only files with .tl extension can be compiled.\n");
     fflush(stdout);
@@ -349,7 +357,11 @@ char* read_file(const char* filename) {
 }
 
 void print_tokens(const char* source, const char* filename) {
-    printf("[DEBUG] Entered print_tokens\n"); fflush(stdout);
+    if (debug_enabled) {
+        printf("Tokens for %s:\n", filename);
+        printf("================\n");
+        fflush(stdout);
+    }
     Error error;
     error_init(&error);
     
@@ -361,10 +373,6 @@ void print_tokens(const char* source, const char* filename) {
         return;
     }
     
-    printf("Tokens for %s:\n", filename);
-    printf("================\n");
-    fflush(stdout);
-    
     Token token;
     do {
         token = lexer_next_token(lexer);
@@ -374,11 +382,17 @@ void print_tokens(const char* source, const char* filename) {
     } while (token.type != TOKEN_EOF);
     
     lexer_destroy(lexer);
-    printf("[DEBUG] Exiting print_tokens\n"); fflush(stdout);
+    if (debug_enabled) {
+        printf("[DEBUG] Exiting print_tokens\n"); fflush(stdout);
+    }
 }
 
 void print_ast(const char* source, const char* filename) {
-    printf("[DEBUG] Entered print_ast\n"); fflush(stdout);
+    if (debug_enabled) {
+        printf("AST for %s:\n", filename);
+        printf("============\n");
+        fflush(stdout);
+    }
     Error error;
     error_init(&error);
     
@@ -412,9 +426,6 @@ void print_ast(const char* source, const char* filename) {
         return;
     }
     
-    printf("AST for %s:\n", filename);
-    printf("============\n");
-    fflush(stdout);
     program_print(program);
     fflush(stdout);
     
@@ -422,11 +433,17 @@ void print_ast(const char* source, const char* filename) {
     error_context_destroy(error_context);
     parser_destroy(parser);
     lexer_destroy(lexer);
-    printf("[DEBUG] Exiting print_ast\n"); fflush(stdout);
+    if (debug_enabled) {
+        printf("[DEBUG] Exiting print_ast\n"); fflush(stdout);
+    }
 }
 
 void print_ir(const char* source, const char* filename) {
-    printf("[DEBUG] Entered print_ir\n"); fflush(stdout);
+    if (debug_enabled) {
+        printf("IR for %s:\n", filename);
+        printf("===========\n");
+        fflush(stdout);
+    }
     Error error;
     error_init(&error);
     
@@ -494,9 +511,6 @@ void print_ir(const char* source, const char* filename) {
         return;
     }
     
-    printf("IR for %s:\n", filename);
-    printf("===========\n");
-    fflush(stdout);
     ir_program_print(ir_program);
     fflush(stdout);
     
@@ -506,14 +520,22 @@ void print_ir(const char* source, const char* filename) {
     error_context_destroy(error_context);
     parser_destroy(parser);
     lexer_destroy(lexer);
-    printf("[DEBUG] Exiting print_ir\n"); fflush(stdout);
+    if (debug_enabled) {
+        printf("[DEBUG] Exiting print_ir\n"); fflush(stdout);
+    }
 }
 
 void dump_ast_json(const char* source, const char* filename) {
-    printf("[DEBUG] Entered dump_ast_json\n"); fflush(stdout);
+    if (debug_enabled) {
+        printf("{\n");
+        printf("  \"ast\": {\n");
+        printf("    \"type\": \"program\",\n");
+        printf("    \"filename\": \"%s\",\n", filename);
+        printf("    \"functions\": [\n");
+    }
+
     Error error;
     error_init(&error);
-    
     Lexer* lexer = lexer_create(source, &error);
     if (error.type != ERROR_NONE) {
         error_print(&error, filename);
@@ -521,7 +543,6 @@ void dump_ast_json(const char* source, const char* filename) {
         fflush(stdout);
         return;
     }
-    
     ErrorContext* error_context = error_context_create(filename, source);
     Parser* parser = parser_create(lexer, error_context);
     if (error.type != ERROR_NONE) {
@@ -532,7 +553,6 @@ void dump_ast_json(const char* source, const char* filename) {
         fflush(stdout);
         return;
     }
-    
     Program* program = parser_parse(parser);
     if (error.type != ERROR_NONE) {
         error_print(&error, filename);
@@ -543,46 +563,45 @@ void dump_ast_json(const char* source, const char* filename) {
         fflush(stdout);
         return;
     }
-    
-    printf("{\n");
-    printf("  \"ast\": {\n");
-    printf("    \"type\": \"program\",\n");
-    printf("    \"filename\": \"%s\",\n", filename);
-    printf("    \"functions\": [\n");
-    
+
     for (size_t i = 0; i < program->functions.size; i++) {
         Function* func = (Function*)array_get(&program->functions, i);
-        
-        printf("      {\n");
-        printf("        \"type\": \"function\",\n");
-        printf("        \"name\": \"%s\",\n", func->name);
-        printf("        \"return_type\": \"%s\",\n", data_type_to_string(func->return_type));
-        printf("        \"parameters\": [\n");
-        
+        if (debug_enabled) {
+            printf("      {\n");
+            printf("        \"type\": \"function\",\n");
+            printf("        \"name\": \"%s\",\n", func->name);
+            printf("        \"return_type\": \"%s\",\n", data_type_to_string(func->return_type));
+            printf("        \"parameters\": [\n");
+        }
         for (size_t j = 0; j < func->params.size; j++) {
             Parameter* param = (Parameter*)array_get(&func->params, j);
-            printf("          {\n");
-            printf("            \"name\": \"%s\",\n", param->name);
-            printf("            \"type\": \"%s\"\n", data_type_to_string(param->type));
-            printf("          }%s\n", j < func->params.size - 1 ? "," : "");
+            if (debug_enabled) {
+                printf("          {\n");
+                printf("            \"name\": \"%s\",\n", param->name);
+                printf("            \"type\": \"%s\"\n", data_type_to_string(param->type));
+                printf("          }%s\n", j < func->params.size - 1 ? "," : "");
+            }
         }
-        
-        printf("        ],\n");
-        printf("        \"body\": ");
-        dump_stmt_json(func->body, 8);
-        printf("\n      }%s\n", i < program->functions.size - 1 ? "," : "");
+        if (debug_enabled) {
+            printf("        ],\n");
+            printf("        \"body\": ");
+            dump_stmt_json(func->body, 8);
+            printf("\n      }%s\n", i < program->functions.size - 1 ? "," : "");
+        }
     }
-    
-    printf("    ]\n");
-    printf("  }\n");
-    printf("}\n");
-    fflush(stdout);
-    
+    if (debug_enabled) {
+        printf("    ]\n");
+        printf("  }\n");
+        printf("}\n");
+        fflush(stdout);
+    }
     program_destroy(program);
     error_context_destroy(error_context);
     parser_destroy(parser);
     lexer_destroy(lexer);
-    printf("[DEBUG] Exiting dump_ast_json\n"); fflush(stdout);
+    if (debug_enabled) {
+        printf("[DEBUG] Exiting dump_ast_json\n"); fflush(stdout);
+    }
 }
 
 void dump_stmt_json(Stmt* stmt, int indent) {
@@ -849,10 +868,14 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
         }
     }
     
-    printf("[DEBUG] Entered compile_file\n"); fflush(stdout);
+    if (debug_enabled) {
+        printf("[DEBUG] Entered compile_file\n"); fflush(stdout);
+    }
     char* source = read_file(input_filename);
     if (!source) {
-        printf("[DEBUG] Failed to read input file\n"); fflush(stdout);
+        if (debug_enabled) {
+            printf("[DEBUG] Failed to read input file\n"); fflush(stdout);
+        }
         return false;
     }
     
@@ -1013,11 +1036,21 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
     printf("Successfully compiled '%s' to '%s' (%s)\n", input_filename, output_filename, output_type);
     fflush(stdout);
     
-    printf("[DEBUG] Exiting compile_file\n"); fflush(stdout);
+    if (debug_enabled) {
+        printf("[DEBUG] Exiting compile_file\n"); fflush(stdout);
+    }
     return true;
 }
 
 int main(int argc, char* argv[]) {
+    // Check for --debug flag
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--debug") == 0) {
+            debug_enabled = true;
+            break;
+        }
+    }
+
     printf("[DEBUG] Entered main\n"); fflush(stdout);
     if (argc < 2) {
         print_fatal_error(argv[0], "no input files");

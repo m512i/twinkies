@@ -7,7 +7,11 @@ SRCDIR = src
 BUILDDIR = build
 INCLUDEDIR = include
 
-SOURCES = $(wildcard $(SRCDIR)/*.c)
+SOURCES = $(wildcard $(SRCDIR)/*.c) \
+          $(wildcard $(SRCDIR)/frontend/*/*.c) \
+          $(wildcard $(SRCDIR)/analysis/*/*.c) \
+          $(wildcard $(SRCDIR)/backend/*/*.c) \
+          $(wildcard $(SRCDIR)/common/*.c)
 
 OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
 
@@ -78,22 +82,22 @@ help:
 	@echo "  uninstall- Remove installed compiler"
 	@echo "  help     - Show this help message"
 
-$(BUILDDIR)/main.o: $(SRCDIR)/main.c $(INCLUDEDIR)/common.h $(INCLUDEDIR)/lexer.h $(INCLUDEDIR)/parser.h $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/semantic.h $(INCLUDEDIR)/ir.h $(INCLUDEDIR)/codegen.h
+$(BUILDDIR)/main.o: $(SRCDIR)/main.c $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h $(INCLUDEDIR)/frontend/parser.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/analysis/semantic.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/backend/codegen.h
 
-$(BUILDDIR)/common.o: $(SRCDIR)/common.c $(INCLUDEDIR)/common.h
+$(BUILDDIR)/common.o: $(SRCDIR)/common/common.c $(INCLUDEDIR)/common.h
 
-$(BUILDDIR)/lexer.o: $(SRCDIR)/lexer.c $(INCLUDEDIR)/lexer.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/frontend/lexer/lexer.o: $(SRCDIR)/frontend/lexer/lexer.c $(INCLUDEDIR)/frontend/lexer.h $(INCLUDEDIR)/common.h
 
-$(BUILDDIR)/parser.o: $(SRCDIR)/parser.c $(INCLUDEDIR)/parser.h $(INCLUDEDIR)/lexer.h $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/frontend/parser/parser.o: $(SRCDIR)/frontend/parser/parser.c $(INCLUDEDIR)/frontend/parser.h $(INCLUDEDIR)/frontend/lexer.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h
 
-$(BUILDDIR)/ast.o: $(SRCDIR)/ast.c $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/lexer.h
+$(BUILDDIR)/frontend/ast/ast.o: $(SRCDIR)/frontend/ast/ast.c $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h
 
-$(BUILDDIR)/semantic.o: $(SRCDIR)/semantic.c $(INCLUDEDIR)/semantic.h $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/analysis/semantic/semantic.o: $(SRCDIR)/analysis/semantic/semantic.c $(INCLUDEDIR)/analysis/semantic.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h
 
-$(BUILDDIR)/ir.o: $(SRCDIR)/ir.c $(INCLUDEDIR)/ir.h $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/backend/ir/ir.o: $(SRCDIR)/backend/ir/ir.c $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h
 
-$(BUILDDIR)/codegen.o: $(SRCDIR)/codegen.c $(INCLUDEDIR)/codegen.h $(INCLUDEDIR)/ir.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/backend/codegen/codegen.o: $(SRCDIR)/backend/codegen/codegen.c $(INCLUDEDIR)/backend/codegen.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/common.h
 
-$(BUILDDIR)/codegenasm.o: $(SRCDIR)/codegenasm.c $(INCLUDEDIR)/codegen.h $(INCLUDEDIR)/ir.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/backend/assembly/codegenasm.o: $(SRCDIR)/backend/assembly/codegenasm.c $(INCLUDEDIR)/backend/codegen.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/common.h
 
 .PHONY: all test example clean install uninstall debug release help 

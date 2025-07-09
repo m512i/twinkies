@@ -1,5 +1,6 @@
-#include "../include/semantic.h"
+#include "analysis/semantic.h"
 #include <stdarg.h>
+extern bool debug_enabled;
 
 static Symbol* scope_define_function_overload(SemanticAnalyzer* analyzer, Function* func);
 static Symbol* resolve_function_overload(SemanticAnalyzer* analyzer, const char* name, DynamicArray* arg_types);
@@ -112,7 +113,7 @@ Symbol* scope_define(SemanticAnalyzer* analyzer, const char* name, SymbolType ty
 
 Symbol* scope_define_array(SemanticAnalyzer* analyzer, const char* name, DataType element_type, int size) {
     (void)element_type; // Suppress unused parameter warning
-    printf("[DEBUG] Defining array %s with size %d\n", name, size);
+    if (debug_enabled) { printf("[DEBUG] Defining array %s with size %d\n", name, size); }
     if (hashtable_contains(analyzer->current_scope->symbols, name)) {
         semantic_error_redefined(analyzer, name, 0, 0); 
         return NULL;
@@ -124,65 +125,66 @@ Symbol* scope_define_array(SemanticAnalyzer* analyzer, const char* name, DataTyp
     symbol->data_type = TYPE_ARRAY;
     symbol->scope_level = analyzer->current_scope->level;
     symbol->array_size = size;  
+    symbol->element_type = element_type;
     symbol->is_used = false;
     symbol->is_defined = true;
     symbol->definition_line = 0;  
     symbol->definition_column = 0;
     
     hashtable_put(analyzer->current_scope->symbols, name, symbol);
-    printf("[DEBUG] Array %s defined with size %d\n", name, symbol->array_size);
+    if (debug_enabled) { printf("[DEBUG] Array %s defined with size %d\n", name, symbol->array_size); }
     
     Symbol* check = hashtable_get(analyzer->current_scope->symbols, name);
     if (check) {
-        printf("[DEBUG] Verified: symbol %s is in hashtable with size %d\n", name, check->array_size);
+        if (debug_enabled) { printf("[DEBUG] Verified: symbol %s is in hashtable with size %d\n", name, check->array_size); }
     } else {
-        printf("[DEBUG] ERROR: symbol %s is NOT in hashtable after putting it!\n", name);
+        if (debug_enabled) { printf("[DEBUG] ERROR: symbol %s is NOT in hashtable after putting it!\n", name); }
     }
     
     return symbol;
 }
 
 Symbol* scope_resolve(SemanticAnalyzer* analyzer, const char* name) {
-    printf("[DEBUG] Resolving symbol %s\n", name);
+    if (debug_enabled) { printf("[DEBUG] Resolving symbol %s\n", name); }
     Scope* scope = analyzer->current_scope;
     int scope_level = 0;
     while (scope) {
-        printf("[DEBUG] Checking scope level %d\n", scope_level);
-        printf("[DEBUG] Scope hashtable size: %zu\n", scope->symbols->size);
-        printf("[DEBUG] Keys in scope level %d:\n", scope_level);
+        if (debug_enabled) { printf("[DEBUG] Checking scope level %d\n", scope_level); }
+        if (debug_enabled) { printf("[DEBUG] Scope hashtable size: %zu\n", scope->symbols->size); }
+        if (debug_enabled) { printf("[DEBUG] Keys in scope level %d:\n", scope_level); }
         for (size_t i = 0; i < scope->symbols->capacity; i++) {
             HashTableEntry* entry = scope->symbols->buckets[i];
             while (entry) {
-                printf("[DEBUG]   Key: '%s', Value: %p\n", entry->key, entry->value);
+                if (debug_enabled) { printf("[DEBUG]   Key: '%s', Value: %p\n", entry->key, entry->value); }
                 entry = entry->next;
             }
         }
         
         Symbol* symbol = hashtable_get(scope->symbols, name);
         if (symbol) {
-            printf("[DEBUG] Found symbol %s in scope level %d\n", name, scope_level);
+            if (debug_enabled) { printf("[DEBUG] Found symbol %s in scope level %d\n", name, scope_level); }
             return symbol;
         }
         scope = scope->parent;
         scope_level++;
     }
-    printf("[DEBUG] Symbol %s not found in any scope\n", name);
+    if (debug_enabled) { printf("[DEBUG] Symbol %s not found in any scope\n", name); }
     return NULL;
 }
 
 int get_array_size(SemanticAnalyzer* analyzer, const char* name) {
-    printf("[DEBUG] Looking up array size for %s\n", name);
+    if (debug_enabled) { printf("[DEBUG] Looking up array size for %s\n", name); }
     Symbol* symbol = scope_resolve(analyzer, name);
     if (symbol) {
-        printf("[DEBUG] Found symbol %s, type=%d, array_size=%d\n", name, symbol->data_type, symbol->array_size);
+        if (debug_enabled) { printf("[DEBUG] Found symbol %s, type=%d, array_size=%d\n", name, symbol->data_type, symbol->array_size); }
     } else {
-        printf("[DEBUG] Symbol %s not found\n", name);
+        if (debug_enabled) { printf("[DEBUG] Symbol %s not found\n", name); }
     }
     if (symbol && symbol->data_type == TYPE_ARRAY) {
-        printf("[DEBUG] Returning array size %d for %s\n", symbol->array_size, name);
+        if (debug_enabled) { printf("[DEBUG] Returning array size %d for %s\n", symbol->array_size, name); }
         return symbol->array_size;
     }
-    printf("[DEBUG] Returning -1 for %s (not an array or not found)\n", name);
+    if (debug_enabled) { printf("[DEBUG] Returning -1 for %s (not an array or not found)\n", name); }
     return -1; 
 }
 
@@ -346,17 +348,13 @@ DataType type_check_expression(SemanticAnalyzer* analyzer, Expr* expr) {
 DataType type_check_statement(SemanticAnalyzer* analyzer, Stmt* stmt) {
     if (!stmt) return TYPE_VOID;
     
-    static bool has_return = false;  
+    // Remove static has_return; use local logic in blocks
     
     switch (stmt->type) {
         case STMT_EXPR:
             return type_check_expression(analyzer, stmt->data.expr.expression);
             
         case STMT_VAR_DECL: {
-            if (has_return) {
-                semantic_warning_unreachable_code(analyzer, stmt->line, stmt->column);
-            }
-            
             DataType declared_type = stmt->data.var_decl.type;
             if (stmt->data.var_decl.initializer) {
                 DataType init_type = type_check_expression(analyzer, stmt->data.var_decl.initializer);
@@ -380,10 +378,6 @@ DataType type_check_statement(SemanticAnalyzer* analyzer, Stmt* stmt) {
         }
         
         case STMT_ARRAY_DECL: {
-            if (has_return) {
-                semantic_warning_unreachable_code(analyzer, stmt->line, stmt->column);
-            }
-            
             if (stmt->data.array_decl.initializer) {
                 DataType init_type = type_check_expression(analyzer, stmt->data.array_decl.initializer);
                 if (init_type != TYPE_VOID && init_type != TYPE_ARRAY && init_type != stmt->data.array_decl.element_type) {
@@ -400,10 +394,6 @@ DataType type_check_statement(SemanticAnalyzer* analyzer, Stmt* stmt) {
         }
         
         case STMT_ASSIGNMENT: {
-            if (has_return) {
-                semantic_warning_unreachable_code(analyzer, stmt->line, stmt->column);
-            }
-            
             Symbol* symbol = scope_resolve(analyzer, stmt->data.assignment.name);
             if (!symbol) {
                 semantic_error_undefined(analyzer, stmt->data.assignment.name, 
@@ -419,10 +409,6 @@ DataType type_check_statement(SemanticAnalyzer* analyzer, Stmt* stmt) {
         }
         
         case STMT_ARRAY_ASSIGNMENT: {
-            if (has_return) {
-                semantic_warning_unreachable_code(analyzer, stmt->line, stmt->column);
-            }
-            
             DataType array_type = type_check_expression(analyzer, stmt->data.array_assignment.array);
             DataType index_type = type_check_expression(analyzer, stmt->data.array_assignment.index);
             DataType value_type = type_check_expression(analyzer, stmt->data.array_assignment.value);
@@ -441,48 +427,42 @@ DataType type_check_statement(SemanticAnalyzer* analyzer, Stmt* stmt) {
                 return TYPE_VOID;
             }
             
-            if (!type_check_assignment(analyzer, TYPE_INT, value_type)) {
-                semantic_error_type_mismatch(analyzer, TYPE_INT, value_type, 
-                                           stmt->line, stmt->column);
+            // Use the array variable's element_type if available
+            DataType element_type = TYPE_INT;
+            if (stmt->data.array_assignment.array->type == EXPR_VARIABLE) {
+                Symbol* symbol = scope_resolve(analyzer, stmt->data.array_assignment.array->data.variable.name);
+                if (symbol && symbol->data_type == TYPE_ARRAY) {
+                    element_type = symbol->element_type;
+                }
+            }
+            if (!type_check_assignment(analyzer, element_type, value_type)) {
+                semantic_error_type_mismatch(analyzer, element_type, value_type, stmt->line, stmt->column);
             }
             return TYPE_VOID;
         }
         
         case STMT_IF: {
-            if (has_return) {
-                semantic_warning_unreachable_code(analyzer, stmt->line, stmt->column);
-            }
-            
             DataType condition_type = type_check_expression(analyzer, stmt->data.if_stmt.condition);
             if (condition_type != TYPE_VOID && condition_type != TYPE_BOOL && condition_type != TYPE_INT) {
                 semantic_error(analyzer, "If condition must be boolean or integer", stmt->line, stmt->column);
             }
-            
             type_check_statement(analyzer, stmt->data.if_stmt.then_branch);
             if (stmt->data.if_stmt.else_branch) {
                 type_check_statement(analyzer, stmt->data.if_stmt.else_branch);
             }
-            
             return TYPE_VOID;
         }
         
         case STMT_WHILE: {
-            if (has_return) {
-                semantic_warning_unreachable_code(analyzer, stmt->line, stmt->column);
-            }
-            
             DataType condition_type = type_check_expression(analyzer, stmt->data.while_stmt.condition);
             if (condition_type != TYPE_VOID && condition_type != TYPE_BOOL && condition_type != TYPE_INT) {
                 semantic_error(analyzer, "While condition must be boolean or integer", stmt->line, stmt->column);
             }
-            
             type_check_statement(analyzer, stmt->data.while_stmt.body);
             return TYPE_VOID;
         }
         
         case STMT_RETURN: {
-            has_return = true;  
-            
             if (stmt->data.return_stmt.value) {
                 type_check_expression(analyzer, stmt->data.return_stmt.value);
             }
@@ -490,10 +470,6 @@ DataType type_check_statement(SemanticAnalyzer* analyzer, Stmt* stmt) {
         }
         
         case STMT_PRINT: {
-            if (has_return) {
-                semantic_warning_unreachable_code(analyzer, stmt->line, stmt->column);
-            }
-            
             if (stmt->data.print_stmt.value) {
                 type_check_expression(analyzer, stmt->data.print_stmt.value);
             }
@@ -507,9 +483,16 @@ DataType type_check_statement(SemanticAnalyzer* analyzer, Stmt* stmt) {
                 created_scope = true;
             }
             
+            bool found_return = false;
             for (size_t i = 0; i < stmt->data.block.statements.size; i++) {
                 Stmt* block_stmt = (Stmt*)array_get(&stmt->data.block.statements, i);
+                if (found_return) {
+                    semantic_warning_unreachable_code(analyzer, block_stmt->line, block_stmt->column);
+                }
                 type_check_statement(analyzer, block_stmt);
+                if (block_stmt->type == STMT_RETURN) {
+                    found_return = true;
+                }
             }
             
             if (created_scope) {
@@ -542,28 +525,18 @@ bool type_check_assignment(SemanticAnalyzer* analyzer, DataType target_type, Dat
     if (target_type == value_type) {
         return true;
     }
-    
+    // Allow implicit conversions between numeric types (with warnings)
+    if (is_numeric_type(target_type) && is_numeric_type(value_type)) {
+        semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
+        return true;
+    }
     if (target_type == TYPE_INT && value_type == TYPE_BOOL) {
-        // Note: We don't have line/column info here, so we'll use 0,0
-        // The actual line info should come from the calling context
         semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
         return true;
     } else if (target_type == TYPE_BOOL && value_type == TYPE_INT) {
-        // Note: We don't have line/column info here, so we'll use 0,0
-        // The actual line info should come from the calling context
-        semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
-        return true;  
-    } else if (target_type == TYPE_FLOAT && value_type == TYPE_INT) {
-        semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
-        return true;  
-    } else if (target_type == TYPE_DOUBLE && (value_type == TYPE_INT || value_type == TYPE_FLOAT)) {
-        semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
-        return true;  
-    } else if (target_type == TYPE_FLOAT && value_type == TYPE_DOUBLE) {
         semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
         return true;  
     }
-    
     return false;
 }
 
@@ -773,7 +746,9 @@ bool is_boolean_type(DataType type) {
 }
 
 bool types_are_compatible(DataType type1, DataType type2) {
-    return type1 == type2;
+    if (type1 == type2) return true;
+    if (is_numeric_type(type1) && is_numeric_type(type2)) return true;
+    return false;
 }
 
 static bool parameter_list_equals(DynamicArray* a, DynamicArray* b) {
@@ -837,15 +812,46 @@ static Symbol* scope_define_function_overload(SemanticAnalyzer* analyzer, Functi
 
 static Symbol* resolve_function_overload(SemanticAnalyzer* analyzer, const char* name, DynamicArray* arg_types) {
     Scope* scope = analyzer->current_scope;
+    Symbol* best_match = NULL;
+    int best_conversions = 1000;
     while (scope) {
         DynamicArray* overloads = hashtable_get(scope->symbols, name);
         if (overloads) {
+            // First, try for exact match
             for (size_t i = 0; i < overloads->size; i++) {
                 Symbol* sym = (Symbol*)array_get(overloads, i);
                 if (parameter_list_equals(&sym->data.function.params, arg_types)) {
                     return sym;
                 }
             }
+            // Now, try for compatible match (using type_check_assignment)
+            for (size_t i = 0; i < overloads->size; i++) {
+                Symbol* sym = (Symbol*)array_get(overloads, i);
+                if (sym->data.function.params.size != arg_types->size) continue;
+                int conversions = 0;
+                bool compatible = true;
+                for (size_t j = 0; j < arg_types->size; j++) {
+                    Parameter* param = (Parameter*)array_get(&sym->data.function.params, j);
+                    Parameter* arg = (Parameter*)array_get(arg_types, j);
+                    if (param->type == arg->type) continue;
+                    if (type_check_assignment(analyzer, param->type, arg->type)) {
+                        conversions++;
+                    } else {
+                        compatible = false;
+                        break;
+                    }
+                }
+                if (compatible) {
+                    if (conversions < best_conversions) {
+                        best_conversions = conversions;
+                        best_match = sym;
+                    } else if (conversions == best_conversions) {
+                        // Ambiguous: two overloads with same conversion cost
+                        best_match = NULL;
+                    }
+                }
+            }
+            if (best_match) return best_match;
         }
         scope = scope->parent;
     }
