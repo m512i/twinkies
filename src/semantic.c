@@ -559,7 +559,7 @@ bool type_check_assignment(SemanticAnalyzer* analyzer, DataType target_type, Dat
     return false;
 }
 
-bool type_check_binary(SemanticAnalyzer* analyzer, TokenType operator, DataType left_type, DataType right_type, int line, int column) {
+bool type_check_binary(SemanticAnalyzer* analyzer, TLTokenType operator, DataType left_type, DataType right_type, int line, int column) {
     switch (operator) {
         case TOKEN_PLUS:
         case TOKEN_MINUS:
@@ -603,7 +603,7 @@ bool type_check_binary(SemanticAnalyzer* analyzer, TokenType operator, DataType 
     }
 }
 
-bool type_check_unary(SemanticAnalyzer* analyzer, TokenType operator, DataType operand_type, int line, int column) {
+bool type_check_unary(SemanticAnalyzer* analyzer, TLTokenType operator, DataType operand_type, int line, int column) {
     switch (operator) {
         case TOKEN_MINUS:
             if (!is_numeric_type(operand_type)) {

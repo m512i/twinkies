@@ -9,6 +9,107 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#elif defined(__linux__)
+#include <sys/utsname.h>
+#elif defined(__APPLE__)
+#include <sys/utsname.h>
+#endif
+
+// Function to get the target machine string dynamically
+const char* get_target_machine(void) {
+    static char machine_string[256];
+    
+#ifdef _WIN32
+    SYSTEM_INFO sysInfo;
+    GetSystemInfo(&sysInfo);
+    
+    const char* arch;
+    switch (sysInfo.wProcessorArchitecture) {
+        case PROCESSOR_ARCHITECTURE_AMD64:
+            arch = "x86_64";
+            break;
+        case PROCESSOR_ARCHITECTURE_ARM:
+            arch = "arm";
+            break;
+        case PROCESSOR_ARCHITECTURE_ARM64:
+            arch = "aarch64";
+            break;
+        case PROCESSOR_ARCHITECTURE_INTEL:
+            arch = "i386";
+            break;
+        default:
+            arch = "unknown";
+            break;
+    }
+    
+    snprintf(machine_string, sizeof(machine_string), "%s-pc-windows-twink", arch);
+    
+#elif defined(__linux__)
+    struct utsname uts;
+    if (uname(&uts) == 0) {
+            snprintf(machine_string, sizeof(machine_string), "%s-%s-linux-twink", 
+            uts.machine, uts.sysname);
+    } else {
+        strcpy(machine_string, "x86_64-pc-linux-twink");
+    }
+    
+#elif defined(__APPLE__)
+    struct utsname uts;
+    if (uname(&uts) == 0) {
+            snprintf(machine_string, sizeof(machine_string), "%s-apple-darwin-twink", 
+            uts.machine);
+    } else {
+        strcpy(machine_string, "x86_64-apple-darwin-twink");
+    }
+    
+#else
+    strcpy(machine_string, "unknown-unknown-unknown");
+#endif
+    
+    return machine_string;
+}
+
+// Function to get the appropriate assembler command
+const char* get_assembler_command(void) {
+#ifdef _WIN32
+    return "ml64 /c /Fo";
+#elif defined(__linux__)
+    return "as --64 -o";
+#elif defined(__APPLE__)
+    return "as -o";
+#else
+    return "as -o";
+#endif
+}
+
+// Function to get the appropriate linker command
+const char* get_linker_command(void) {
+#ifdef _WIN32
+    return "link /OUT:";
+#elif defined(__linux__)
+    return "ld -m elf_x86_64 -o";
+#elif defined(__APPLE__)
+    return "ld -o";
+#else
+    return "ld -o";
+#endif
+}
+
+// Function to get the dynamic linker path
+const char* get_dynamic_linker(void) {
+#ifdef _WIN32
+    return "kernel32.dll";
+#elif defined(__linux__)
+    return "/lib64/ld-linux-x86-64.so.2";
+#elif defined(__APPLE__)
+    return "/usr/lib/dyld";
+#else
+    return "/lib/ld.so";
+#endif
+}
+
 bool has_tl_extension(const char* filename) {
     if (!filename) return false;
     
@@ -258,17 +359,17 @@ bool compile_file(const char* input_filename, const char* output_filename, bool 
     if (verbose) {
         printf("Using built-in specs.\n");
         printf("COLLECT_GCC=%s\n", "compiler.exe");
-        printf("Target: x86_64-pc-windows-msvc\n");
+        printf("Target: %s\n", get_target_machine());
         printf("Configured with: --prefix=/usr/local --enable-languages=c\n");
         printf("Thread model: posix\n");
-        printf("gcc version 1.0.0 (Tiny Language Compiler)\n");
+        printf("gcc version 1.0.0 (Twink Language Compiler)\n");
         printf("COLLECT_GCC_OPTIONS='-o' '%s'\n", output_filename);
         if (assembly_output) {
-            printf(" /usr/bin/as --64 -o %s %s\n", output_filename, input_filename);
-            printf(" /usr/bin/ld -m i386pep -o %s %s\n", output_filename, output_filename);
+            printf(" %s %s %s\n", get_assembler_command(), output_filename, input_filename);
+            printf(" %s %s %s\n", get_linker_command(), output_filename, output_filename);
         } else {
-            printf(" /usr/bin/as --32 -o %s %s\n", output_filename, input_filename);
-            printf(" /usr/bin/ld -m i386pe -o %s %s\n", output_filename, output_filename);
+            printf(" %s %s %s\n", get_assembler_command(), output_filename, input_filename);
+            printf(" %s %s %s\n", get_linker_command(), output_filename, output_filename);
         }
     }
     
@@ -462,18 +563,18 @@ int main(int argc, char* argv[]) {
             print_usage(argv[0]);
             return 0;
         } else if (strcmp(argv[i], "--dumpspecs") == 0) {
-            printf("Spec strings for Tiny Language Compiler:\n");
+            printf("Spec strings for Twink Language Compiler:\n");
             printf("  *cpp: %s -E -undef -traditional\n", argv[0]);
             printf("  *cc1: %s -E -quiet -dumpbase %%B.dump -auxbase-strip %%s -o %%s\n", argv[0]);
-            printf("  *as: as --32\n");
-            printf("  *ld: ld -m elf_i386 -dynamic-linker /lib/ld-linux.so.2\n");
+            printf("  *as: %s\n", get_assembler_command());
+            printf("  *ld: %s -dynamic-linker %s\n", get_linker_command(), get_dynamic_linker());
             printf("  *link: %s -E -Bstatic -o %%s %%s %%s %%s\n", argv[0]);
             return 0;
         } else if (strcmp(argv[i], "--dumpversion") == 0) {
             printf("1.0.0\n");
             return 0;
         } else if (strcmp(argv[i], "--dumpmachine") == 0) {
-            printf("x86_64-pc-windows-msvc\n");
+            printf("%s\n", get_target_machine());
             return 0;
         } else if (strcmp(argv[i], "--v") == 0) {
             verbose_flag = true;

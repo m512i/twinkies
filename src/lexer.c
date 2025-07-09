@@ -3,7 +3,7 @@
 
 typedef struct {
     const char* keyword;
-    TokenType type;
+    TLTokenType type;
 } Keyword;
 
 static const Keyword keywords[] = {
@@ -86,7 +86,7 @@ static void skip_whitespace(Lexer* lexer) {
     }
 }
 
-static Token make_token(Lexer* lexer, TokenType type) {
+static Token make_token(Lexer* lexer, TLTokenType type) {
     Token token;
     token.type = type;
     
@@ -137,7 +137,7 @@ static Token error_token(Lexer* lexer, const char* message) {
     return token;
 }
 
-static TokenType identifier_type(const char* lexeme) {
+static TLTokenType identifier_type(const char* lexeme) {
     for (int i = 0; keywords[i].keyword != NULL; i++) {
         if (string_equal(lexeme, keywords[i].keyword)) {
             return keywords[i].type;
@@ -291,7 +291,7 @@ bool lexer_is_at_end(Lexer* lexer) {
     return is_at_end(lexer);
 }
 
-const char* token_type_to_string(TokenType type) {
+const char* token_type_to_string(TLTokenType type) {
     switch (type) {
         case TOKEN_NUMBER: return "NUMBER";
         case TOKEN_IDENTIFIER: return "IDENTIFIER";

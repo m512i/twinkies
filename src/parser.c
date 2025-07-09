@@ -32,7 +32,7 @@ void parser_advance(Parser* parser) {
     }
 }
 
-void parser_consume(Parser* parser, TokenType type, const char* message) {
+void parser_consume(Parser* parser, TLTokenType type, const char* message) {
     if (parser->current.type == type) {
         parser_advance(parser);
         return;
@@ -41,11 +41,11 @@ void parser_consume(Parser* parser, TokenType type, const char* message) {
     parser_error(parser, message);
 }
 
-bool parser_check(Parser* parser, TokenType type) {
+bool parser_check(Parser* parser, TLTokenType type) {
     return parser->current.type == type;
 }
 
-bool parser_match(Parser* parser, TokenType type) {
+bool parser_match(Parser* parser, TLTokenType type) {
     if (!parser_check(parser, type)) return false;
     parser_advance(parser);
     return true;
@@ -131,7 +131,7 @@ Expr* parse_logical_or(Parser* parser) {
     Expr* expr = parse_logical_and(parser);
     
     while (parser_match(parser, TOKEN_OR)) {
-        TokenType operator = parser->previous.type;
+        TLTokenType operator = parser->previous.type;
         Expr* right = parse_logical_and(parser);
         expr = expr_binary(expr, operator, right, expr->line, expr->column);
     }
@@ -143,7 +143,7 @@ Expr* parse_logical_and(Parser* parser) {
     Expr* expr = parse_equality(parser);
     
     while (parser_match(parser, TOKEN_AND)) {
-        TokenType operator = parser->previous.type;
+        TLTokenType operator = parser->previous.type;
         Expr* right = parse_equality(parser);
         expr = expr_binary(expr, operator, right, expr->line, expr->column);
     }
@@ -155,7 +155,7 @@ Expr* parse_equality(Parser* parser) {
     Expr* expr = parse_comparison(parser);
     
     while (parser_match(parser, TOKEN_NE) || parser_match(parser, TOKEN_EQ)) {
-        TokenType operator = parser->previous.type;
+        TLTokenType operator = parser->previous.type;
         Expr* right = parse_comparison(parser);
         expr = expr_binary(expr, operator, right, expr->line, expr->column);
     }
@@ -168,7 +168,7 @@ Expr* parse_comparison(Parser* parser) {
     
     while (parser_match(parser, TOKEN_GT) || parser_match(parser, TOKEN_GE) ||
            parser_match(parser, TOKEN_LT) || parser_match(parser, TOKEN_LE)) {
-        TokenType operator = parser->previous.type;
+        TLTokenType operator = parser->previous.type;
         Expr* right = parse_term(parser);
         expr = expr_binary(expr, operator, right, expr->line, expr->column);
     }
@@ -180,7 +180,7 @@ Expr* parse_term(Parser* parser) {
     Expr* expr = parse_factor(parser);
     
     while (parser_match(parser, TOKEN_MINUS) || parser_match(parser, TOKEN_PLUS)) {
-        TokenType operator = parser->previous.type;
+        TLTokenType operator = parser->previous.type;
         Expr* right = parse_factor(parser);
         expr = expr_binary(expr, operator, right, expr->line, expr->column);
     }
@@ -193,7 +193,7 @@ Expr* parse_factor(Parser* parser) {
     
     while (parser_match(parser, TOKEN_SLASH) || parser_match(parser, TOKEN_STAR) ||
            parser_match(parser, TOKEN_PERCENT)) {
-        TokenType operator = parser->previous.type;
+        TLTokenType operator = parser->previous.type;
         Expr* right = parse_unary(parser);
         expr = expr_binary(expr, operator, right, expr->line, expr->column);
     }
@@ -203,7 +203,7 @@ Expr* parse_factor(Parser* parser) {
 
 Expr* parse_unary(Parser* parser) {
     if (parser_match(parser, TOKEN_BANG) || parser_match(parser, TOKEN_MINUS)) {
-        TokenType operator = parser->previous.type;
+        TLTokenType operator = parser->previous.type;
         Expr* right = parse_unary(parser);
         return expr_unary(operator, right, parser->previous.line, parser->previous.column);
     }

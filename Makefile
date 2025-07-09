@@ -7,14 +7,7 @@ SRCDIR = src
 BUILDDIR = build
 INCLUDEDIR = include
 
-SOURCES = $(wildcard $(SRCDIR)/*.c) \
-          $(wildcard $(SRCDIR)/common/*.c) \
-          $(wildcard $(SRCDIR)/lexer/*.c) \
-          $(wildcard $(SRCDIR)/parser/*.c) \
-          $(wildcard $(SRCDIR)/ast/*.c) \
-          $(wildcard $(SRCDIR)/semantic/*.c) \
-          $(wildcard $(SRCDIR)/ir/*.c) \
-          $(wildcard $(SRCDIR)/codegen/*.c)
+SOURCES = $(wildcard $(SRCDIR)/*.c)
 
 OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
 
@@ -24,13 +17,6 @@ all: $(BUILDDIR) $(TARGET)
 
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
-	mkdir -p $(BUILDDIR)/common
-	mkdir -p $(BUILDDIR)/lexer
-	mkdir -p $(BUILDDIR)/parser
-	mkdir -p $(BUILDDIR)/ast
-	mkdir -p $(BUILDDIR)/semantic
-	mkdir -p $(BUILDDIR)/ir
-	mkdir -p $(BUILDDIR)/codegen
 
 $(TARGET): $(OBJECTS)
 	$(CC) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
@@ -94,18 +80,20 @@ help:
 
 $(BUILDDIR)/main.o: $(SRCDIR)/main.c $(INCLUDEDIR)/common.h $(INCLUDEDIR)/lexer.h $(INCLUDEDIR)/parser.h $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/semantic.h $(INCLUDEDIR)/ir.h $(INCLUDEDIR)/codegen.h
 
-$(BUILDDIR)/common/common.o: $(SRCDIR)/common/common.c $(INCLUDEDIR)/common.h
+$(BUILDDIR)/common.o: $(SRCDIR)/common.c $(INCLUDEDIR)/common.h
 
-$(BUILDDIR)/lexer/lexer.o: $(SRCDIR)/lexer/lexer.c $(INCLUDEDIR)/lexer.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/lexer.o: $(SRCDIR)/lexer.c $(INCLUDEDIR)/lexer.h $(INCLUDEDIR)/common.h
 
-$(BUILDDIR)/parser/parser.o: $(SRCDIR)/parser/parser.c $(INCLUDEDIR)/parser.h $(INCLUDEDIR)/lexer.h $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/parser.o: $(SRCDIR)/parser.c $(INCLUDEDIR)/parser.h $(INCLUDEDIR)/lexer.h $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/common.h
 
-$(BUILDDIR)/ast/ast.o: $(SRCDIR)/ast/ast.c $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/lexer.h
+$(BUILDDIR)/ast.o: $(SRCDIR)/ast.c $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/lexer.h
 
-$(BUILDDIR)/semantic/semantic.o: $(SRCDIR)/semantic/semantic.c $(INCLUDEDIR)/semantic.h $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/semantic.o: $(SRCDIR)/semantic.c $(INCLUDEDIR)/semantic.h $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/common.h
 
-$(BUILDDIR)/ir/ir.o: $(SRCDIR)/ir/ir.c $(INCLUDEDIR)/ir.h $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/ir.o: $(SRCDIR)/ir.c $(INCLUDEDIR)/ir.h $(INCLUDEDIR)/ast.h $(INCLUDEDIR)/common.h
 
-$(BUILDDIR)/codegen/codegen.o: $(SRCDIR)/codegen/codegen.c $(INCLUDEDIR)/codegen.h $(INCLUDEDIR)/ir.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/codegen.o: $(SRCDIR)/codegen.c $(INCLUDEDIR)/codegen.h $(INCLUDEDIR)/ir.h $(INCLUDEDIR)/common.h
+
+$(BUILDDIR)/codegenasm.o: $(SRCDIR)/codegenasm.c $(INCLUDEDIR)/codegen.h $(INCLUDEDIR)/ir.h $(INCLUDEDIR)/common.h
 
 .PHONY: all test example clean install uninstall debug release help 

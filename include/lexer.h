@@ -52,10 +52,10 @@ typedef enum {
     
     TOKEN_TRUE,      
     TOKEN_FALSE,    
-} TokenType;
+} TLTokenType;
 
 typedef struct {
-    TokenType type;
+    TLTokenType type;
     char* lexeme;
     int line;
     int column;
@@ -80,7 +80,7 @@ Token lexer_next_token(Lexer* lexer);
 Token lexer_peek_token(Lexer* lexer);
 bool lexer_is_at_end(Lexer* lexer);
 
-const char* token_type_to_string(TokenType type);
+const char* token_type_to_string(TLTokenType type);
 void token_print(const Token* token);
 void token_destroy(Token* token);
 

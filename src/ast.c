@@ -29,7 +29,7 @@ Expr* expr_variable(const char* name, int line, int column) {
     return expr;
 }
 
-Expr* expr_binary(Expr* left, TokenType operator, Expr* right, int line, int column) {
+Expr* expr_binary(Expr* left, TLTokenType operator, Expr* right, int line, int column) {
     Expr* expr = safe_malloc(sizeof(Expr));
     expr->type = EXPR_BINARY;
     expr->line = line;
@@ -40,7 +40,7 @@ Expr* expr_binary(Expr* left, TokenType operator, Expr* right, int line, int col
     return expr;
 }
 
-Expr* expr_unary(TokenType operator, Expr* operand, int line, int column) {
+Expr* expr_unary(TLTokenType operator, Expr* operand, int line, int column) {
     Expr* expr = safe_malloc(sizeof(Expr));
     expr->type = EXPR_UNARY;
     expr->line = line;
@@ -485,7 +485,7 @@ const char* data_type_to_string(DataType type) {
     }
 }
 
-DataType token_to_data_type(TokenType token_type) {
+DataType token_to_data_type(TLTokenType token_type) {
     switch (token_type) {
         case TOKEN_INT: return TYPE_INT;
         case TOKEN_BOOL: return TYPE_BOOL;

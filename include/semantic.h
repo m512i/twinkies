@@ -60,8 +60,8 @@ DataType type_check_expression(SemanticAnalyzer* analyzer, Expr* expr);
 DataType type_check_statement(SemanticAnalyzer* analyzer, Stmt* stmt);
 DataType type_check_function(SemanticAnalyzer* analyzer, Function* func);
 bool type_check_assignment(SemanticAnalyzer* analyzer, DataType target_type, DataType value_type);
-bool type_check_binary(SemanticAnalyzer* analyzer, TokenType operator, DataType left_type, DataType right_type, int line, int column);
-bool type_check_unary(SemanticAnalyzer* analyzer, TokenType operator, DataType operand_type, int line, int column);
+bool type_check_binary(SemanticAnalyzer* analyzer, TLTokenType operator, DataType left_type, DataType right_type, int line, int column);
+bool type_check_unary(SemanticAnalyzer* analyzer, TLTokenType operator, DataType operand_type, int line, int column);
 
 void semantic_error(SemanticAnalyzer* analyzer, const char* message, int line, int column);
 void semantic_error_with_suggestion(SemanticAnalyzer* analyzer, const char* message, const char* suggestion, int line, int column);

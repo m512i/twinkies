@@ -45,9 +45,9 @@ Function* parse_function(Parser* parser);
 Parameter* parse_parameter(Parser* parser);
 
 void parser_advance(Parser* parser);
-void parser_consume(Parser* parser, TokenType type, const char* message);
-bool parser_check(Parser* parser, TokenType type);
-bool parser_match(Parser* parser, TokenType type);
+void parser_consume(Parser* parser, TLTokenType type, const char* message);
+bool parser_check(Parser* parser, TLTokenType type);
+bool parser_match(Parser* parser, TLTokenType type);
 void parser_synchronize(Parser* parser);
 void parser_error(Parser* parser, const char* message);
 void parser_reset_error_count(Parser* parser);

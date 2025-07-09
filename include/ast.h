@@ -64,12 +64,12 @@ struct Expr {
         
         struct {
             Expr* left;
-            TokenType operator;
+            TLTokenType operator;
             Expr* right;
         } binary;
         
         struct {
-            TokenType operator;
+            TLTokenType operator;
             Expr* operand;
         } unary;
         
@@ -166,8 +166,8 @@ struct Program {
 Expr* expr_literal_number(int64_t value, int line, int column);
 Expr* expr_literal_bool(bool value, int line, int column);
 Expr* expr_variable(const char* name, int line, int column);
-Expr* expr_binary(Expr* left, TokenType operator, Expr* right, int line, int column);
-Expr* expr_unary(TokenType operator, Expr* operand, int line, int column);
+Expr* expr_binary(Expr* left, TLTokenType operator, Expr* right, int line, int column);
+Expr* expr_unary(TLTokenType operator, Expr* operand, int line, int column);
 Expr* expr_call(const char* name, int line, int column);
 Expr* expr_group(Expr* expression, int line, int column);
 Expr* expr_array_index(Expr* array, Expr* index, int line, int column);
@@ -204,6 +204,6 @@ void function_print(const Function* func, int indent);
 void program_print(const Program* program);
 
 const char* data_type_to_string(DataType type);
-DataType token_to_data_type(TokenType token_type);
+DataType token_to_data_type(TLTokenType token_type);
 
 #endif 
