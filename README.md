@@ -1,3 +1,6 @@
+made syntax highlighter cus why not lol https://marketplace.visualstudio.com/publishers/avalehi
+
+
 i hope to update this in the near future to actually make this COMPILE
 for now it just translates to c & asm but
 you have to manually link it / compile it
