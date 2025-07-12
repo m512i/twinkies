@@ -3,6 +3,7 @@ extern bool debug_enabled;
 
 Expr *finish_call(Parser *parser, Expr *callee);
 Expr *finish_array_index(Parser *parser, Expr *array);
+Expr *finish_string_index(Parser *parser, Expr *string);
 
 Parser *parser_create(Lexer *lexer, ErrorContext *error_context)
 {
@@ -316,6 +317,9 @@ Expr *parse_call(Parser *parser)
         }
         else if (parser_match(parser, TOKEN_LBRACKET))
         {
+            // For now, we'll use array indexing for all bracket operations
+            // The semantic analyzer will determine if it's string or array indexing
+            // based on the variable type. This allows the parser to be simpler.
             expr = finish_array_index(parser, expr);
         }
         else
@@ -357,6 +361,15 @@ Expr *finish_array_index(Parser *parser, Expr *array)
     return array_index;
 }
 
+Expr *finish_string_index(Parser *parser, Expr *string)
+{
+    Expr *index = parse_expression(parser);
+    parser_consume(parser, TOKEN_RBRACKET, "Expect ']' after string index.");
+
+    Expr *string_index = expr_string_index(string, index, string->line, string->column);
+    return string_index;
+}
+
 Stmt *parse_statement(Parser *parser)
 {
     if (debug_enabled)
@@ -392,6 +405,24 @@ Stmt *parse_statement(Parser *parser)
             fflush(stdout);
         }
         result = parse_while_statement(parser);
+    }
+    else if (parser_match(parser, TOKEN_BREAK))
+    {
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Parsing break statement\n");
+            fflush(stdout);
+        }
+        result = parse_break_statement(parser);
+    }
+    else if (parser_match(parser, TOKEN_CONTINUE))
+    {
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Parsing continue statement\n");
+            fflush(stdout);
+        }
+        result = parse_continue_statement(parser);
     }
     else if (parser_match(parser, TOKEN_RETURN))
     {
@@ -667,6 +698,26 @@ Stmt *parse_while_statement(Parser *parser)
     return stmt_while(condition, body, parser->previous.line, parser->previous.column);
 }
 
+Stmt *parse_break_statement(Parser *parser)
+{
+    if (!parser_match(parser, TOKEN_SEMICOLON))
+    {
+        parser_error(parser, "Expect ';' after 'break'.");
+        parser_synchronize(parser);
+    }
+    return stmt_break(parser->previous.line, parser->previous.column);
+}
+
+Stmt *parse_continue_statement(Parser *parser)
+{
+    if (!parser_match(parser, TOKEN_SEMICOLON))
+    {
+        parser_error(parser, "Expect ';' after 'continue'.");
+        parser_synchronize(parser);
+    }
+    return stmt_continue(parser->previous.line, parser->previous.column);
+}
+
 Stmt *parse_return_statement(Parser *parser)
 {
     Expr *value = NULL;
@@ -686,15 +737,26 @@ Stmt *parse_return_statement(Parser *parser)
 Stmt *parse_print_statement(Parser *parser)
 {
     parser_consume(parser, TOKEN_LPAREN, "Expect '(' after 'print'.");
-    Expr *value = parse_expression(parser);
-    parser_consume(parser, TOKEN_RPAREN, "Expect ')' after print value.");
+
+    Stmt *print_stmt = stmt_print_stmt(parser->previous.line, parser->previous.column);
+
+    Expr *first_arg = parse_expression(parser);
+    stmt_add_print_arg(print_stmt, first_arg);
+
+    while (parser_match(parser, TOKEN_COMMA))
+    {
+        Expr *arg = parse_expression(parser);
+        stmt_add_print_arg(print_stmt, arg);
+    }
+
+    parser_consume(parser, TOKEN_RPAREN, "Expect ')' after print arguments.");
     if (!parser_match(parser, TOKEN_SEMICOLON))
     {
         parser_error(parser, "Expect ';' after print statement.");
         parser_synchronize(parser);
     }
 
-    return stmt_print_stmt(value, parser->previous.line, parser->previous.column);
+    return print_stmt;
 }
 
 Stmt *parse_expression_statement(Parser *parser)

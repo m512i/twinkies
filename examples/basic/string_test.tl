@@ -18,6 +18,22 @@ func main() -> int {
     let d: string = concat(a, greeting);
     print(d);
     print("re" + "tard");
+
+    // String length
+    let len: int = strlen(message);
+    print(len);
+
+    // String substring
+    let sub: string = substr(message, 0, 5);
+    print(sub);
+
+    // String comparison
+    let cmp: int = strcmp("hello", "world");
+    print(cmp);
+
+    // String indexing
+    let first_char: string = message[0];
+    print(first_char);
     
     return 0;
 } 

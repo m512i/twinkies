@@ -406,6 +406,37 @@ void codegen_write_header(CodeGenerator *generator)
     fprintf(generator->output_file, "    strcat(result, b);\n");
     fprintf(generator->output_file, "    return result;\n");
     fprintf(generator->output_file, "}\n\n");
+    fprintf(generator->output_file, "int64_t __tl_strlen(const char* str) {\n");
+    fprintf(generator->output_file, "    return (int64_t)strlen(str);\n");
+    fprintf(generator->output_file, "}\n\n");
+    fprintf(generator->output_file, "char* __tl_substr(const char* str, int64_t start, int64_t len) {\n");
+    fprintf(generator->output_file, "    size_t str_len = strlen(str);\n");
+    fprintf(generator->output_file, "    if (start < 0 || start >= str_len || len < 0) {\n");
+    fprintf(generator->output_file, "        return strdup(\"\");\n");
+    fprintf(generator->output_file, "    }\n");
+    fprintf(generator->output_file, "    if (start + len > str_len) {\n");
+    fprintf(generator->output_file, "        len = str_len - start;\n");
+    fprintf(generator->output_file, "    }\n");
+    fprintf(generator->output_file, "    char* result = (char*)malloc(len + 1);\n");
+    fprintf(generator->output_file, "    if (!result) { fprintf(stderr, \"Out of memory\\n\"); exit(1); }\n");
+    fprintf(generator->output_file, "    strncpy(result, str + start, len);\n");
+    fprintf(generator->output_file, "    result[len] = '\\0';\n");
+    fprintf(generator->output_file, "    return result;\n");
+    fprintf(generator->output_file, "}\n\n");
+    fprintf(generator->output_file, "int64_t __tl_strcmp(const char* a, const char* b) {\n");
+    fprintf(generator->output_file, "    return (int64_t)strcmp(a, b);\n");
+    fprintf(generator->output_file, "}\n\n");
+    fprintf(generator->output_file, "char* __tl_char_at(const char* str, int64_t index) {\n");
+    fprintf(generator->output_file, "    size_t len = strlen(str);\n");
+    fprintf(generator->output_file, "    if (index < 0 || index >= len) {\n");
+    fprintf(generator->output_file, "        return strdup(\"\");\n");
+    fprintf(generator->output_file, "    }\n");
+    fprintf(generator->output_file, "    char* result = (char*)malloc(2);\n");
+    fprintf(generator->output_file, "    if (!result) { fprintf(stderr, \"Out of memory\\n\"); exit(1); }\n");
+    fprintf(generator->output_file, "    result[0] = str[index];\n");
+    fprintf(generator->output_file, "    result[1] = '\\0';\n");
+    fprintf(generator->output_file, "    return result;\n");
+    fprintf(generator->output_file, "}\n\n");
 
     for (size_t i = 0; i < generator->ir_program->functions.size; i++)
     {

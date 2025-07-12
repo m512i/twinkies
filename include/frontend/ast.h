@@ -18,7 +18,8 @@ typedef enum
     EXPR_UNARY,
     EXPR_CALL,
     EXPR_GROUP,
-    EXPR_ARRAY_INDEX
+    EXPR_ARRAY_INDEX,
+    EXPR_STRING_INDEX
 } ExprType;
 
 typedef enum
@@ -30,6 +31,8 @@ typedef enum
     STMT_ARRAY_ASSIGNMENT,
     STMT_IF,
     STMT_WHILE,
+    STMT_BREAK,
+    STMT_CONTINUE,
     STMT_RETURN,
     STMT_PRINT,
     STMT_BLOCK
@@ -107,6 +110,12 @@ struct Expr
             Expr *array;
             Expr *index;
         } array_index;
+
+        struct
+        {
+            Expr *string;
+            Expr *index;
+        } string_index;
     } data;
 };
 
@@ -170,7 +179,7 @@ struct Stmt
 
         struct
         {
-            Expr *value;
+            DynamicArray args;
         } print_stmt;
 
         struct
@@ -209,6 +218,7 @@ Expr *expr_unary(TLTokenType operator, Expr * operand, int line, int column);
 Expr *expr_call(const char *name, int line, int column);
 Expr *expr_group(Expr *expression, int line, int column);
 Expr *expr_array_index(Expr *array, Expr *index, int line, int column);
+Expr *expr_string_index(Expr *string, Expr *index, int line, int column);
 
 Stmt *stmt_expr(Expr *expression, int line, int column);
 Stmt *stmt_var_decl(const char *name, DataType type, Expr *initializer, int line, int column);
@@ -217,8 +227,10 @@ Stmt *stmt_assignment(const char *name, Expr *value, int line, int column);
 Stmt *stmt_array_assignment(Expr *array, Expr *index, Expr *value, int line, int column);
 Stmt *stmt_if(Expr *condition, Stmt *then_branch, Stmt *else_branch, int line, int column);
 Stmt *stmt_while(Expr *condition, Stmt *body, int line, int column);
+Stmt *stmt_break(int line, int column);
+Stmt *stmt_continue(int line, int column);
 Stmt *stmt_return(Expr *value, int line, int column);
-Stmt *stmt_print_stmt(Expr *value, int line, int column);
+Stmt *stmt_print_stmt(int line, int column);
 Stmt *stmt_block(int line, int column);
 
 Function *function_create(const char *name, DataType return_type);
@@ -227,6 +239,7 @@ Program *program_create(void);
 
 void expr_add_call_arg(Expr *call, Expr *arg);
 void stmt_add_block_stmt(Stmt *block, Stmt *stmt);
+void stmt_add_print_arg(Stmt *print_stmt, Expr *arg);
 void function_add_param(Function *func, Parameter *param);
 void program_add_function(Program *program, Function *func);
 

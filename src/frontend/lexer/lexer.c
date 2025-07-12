@@ -190,6 +190,10 @@ static TLTokenType identifier_type(const char *lexeme)
         return TOKEN_ELSE;
     if (strcmp(lexeme, "while") == 0)
         return TOKEN_WHILE;
+    if (strcmp(lexeme, "break") == 0)
+        return TOKEN_BREAK;
+    if (strcmp(lexeme, "continue") == 0)
+        return TOKEN_CONTINUE;
     if (strcmp(lexeme, "return") == 0)
         return TOKEN_RETURN;
     if (strcmp(lexeme, "print") == 0)
@@ -458,6 +462,10 @@ const char *token_type_to_string(TLTokenType type)
         return "ELSE";
     case TOKEN_WHILE:
         return "WHILE";
+    case TOKEN_BREAK:
+        return "BREAK";
+    case TOKEN_CONTINUE:
+        return "CONTINUE";
     case TOKEN_RETURN:
         return "RETURN";
     case TOKEN_PRINT:

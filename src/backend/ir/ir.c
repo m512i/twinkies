@@ -1,4 +1,5 @@
 #include "backend/ir.h"
+#include "analysis/semantic.h"
 extern bool debug_enabled;
 
 IROperand *ir_operand_temp(int temp_id)
@@ -282,6 +283,47 @@ IRInstruction *ir_instruction_var_decl(const char *var_name, DataType type)
     return instr;
 }
 
+LoopContext *ir_loop_context_create(char *start_label, char *end_label)
+{
+    LoopContext *context = safe_malloc(sizeof(LoopContext));
+    context->loop_start_label = string_copy(start_label);
+    context->loop_end_label = string_copy(end_label);
+    context->parent = NULL;
+    return context;
+}
+
+void ir_loop_context_destroy(LoopContext *context)
+{
+    if (!context)
+        return;
+
+    safe_free(context->loop_start_label);
+    safe_free(context->loop_end_label);
+    safe_free(context);
+}
+
+void ir_function_enter_loop(IRFunction *func, char *start_label, char *end_label)
+{
+    LoopContext *new_context = ir_loop_context_create(start_label, end_label);
+    new_context->parent = func->current_loop;
+    func->current_loop = new_context;
+}
+
+void ir_function_exit_loop(IRFunction *func)
+{
+    if (!func->current_loop)
+        return;
+
+    LoopContext *parent = func->current_loop->parent;
+    ir_loop_context_destroy(func->current_loop);
+    func->current_loop = parent;
+}
+
+LoopContext *ir_function_get_current_loop(IRFunction *func)
+{
+    return func->current_loop;
+}
+
 IRFunction *ir_function_create(const char *name, DataType return_type)
 {
     IRFunction *func = safe_malloc(sizeof(IRFunction));
@@ -291,6 +333,7 @@ IRFunction *ir_function_create(const char *name, DataType return_type)
     array_init(&func->instructions, 16);
     func->temp_counter = 0;
     func->label_counter = 0;
+    func->current_loop = NULL;
     return func;
 }
 
@@ -372,6 +415,11 @@ void ir_function_destroy(IRFunction *func)
         ir_instruction_destroy((IRInstruction *)array_get(&func->instructions, i));
     }
     array_free(&func->instructions);
+
+    while (func->current_loop)
+    {
+        ir_function_exit_loop(func);
+    }
 
     safe_free(func);
 }
@@ -832,6 +880,8 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
         char *loop_label = ir_function_new_label(ir_func);
         char *end_label = ir_function_new_label(ir_func);
 
+        ir_function_enter_loop(ir_func, loop_label, end_label);
+
         IRInstruction *loop_lbl = ir_instruction_label(loop_label);
         ir_function_add_instruction(ir_func, loop_lbl);
 
@@ -846,6 +896,46 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
 
         IRInstruction *end_lbl = ir_instruction_label(end_label);
         ir_function_add_instruction(ir_func, end_lbl);
+
+        ir_function_exit_loop(ir_func);
+        break;
+    }
+
+    case STMT_BREAK:
+    {
+        LoopContext *current_loop = ir_function_get_current_loop(ir_func);
+        if (current_loop)
+        {
+            IRInstruction *jump = ir_instruction_jump(current_loop->loop_end_label);
+            ir_function_add_instruction(ir_func, jump);
+        }
+        else
+        {
+            if (debug_enabled)
+            {
+                fprintf(stderr, "[IR ERROR] 'break' statement not within a loop (IR generation)\n");
+            }
+            // abort or insert a trap instruction here
+        }
+        break;
+    }
+
+    case STMT_CONTINUE:
+    {
+        LoopContext *current_loop = ir_function_get_current_loop(ir_func);
+        if (current_loop)
+        {
+            IRInstruction *jump = ir_instruction_jump(current_loop->loop_start_label);
+            ir_function_add_instruction(ir_func, jump);
+        }
+        else
+        {
+            if (debug_enabled)
+            {
+                fprintf(stderr, "[IR ERROR] 'continue' statement not within a loop (IR generation)\n");
+            }
+            // abort or insert a trap instruction here
+        }
         break;
     }
     case STMT_RETURN:
@@ -862,9 +952,10 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
         }
         break;
     case STMT_PRINT:
-        if (stmt->data.print_stmt.value)
+        for (size_t i = 0; i < stmt->data.print_stmt.args.size; i++)
         {
-            IROperand *value = ir_generate_expression(ir_func, stmt->data.print_stmt.value, analyzer);
+            Expr *arg = (Expr *)array_get(&stmt->data.print_stmt.args, i);
+            IROperand *value = ir_generate_expression(ir_func, arg, analyzer);
             IRInstruction *print = ir_instruction_print_op(value);
             ir_function_add_instruction(ir_func, print);
         }
@@ -1056,6 +1147,49 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
             ir_function_add_instruction(ir_func, call);
             return result;
         }
+        else if (string_equal(expr->data.call.name, "strlen") && expr->data.call.args.size == 1)
+        {
+            IROperand *str = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 0), analyzer);
+            IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
+            result->data_type = TYPE_INT;
+            IRInstruction *param = ir_instruction_param(str);
+            ir_function_add_instruction(ir_func, param);
+            IRInstruction *call = ir_instruction_call(result, "__tl_strlen");
+            ir_function_add_instruction(ir_func, call);
+            return result;
+        }
+        else if (string_equal(expr->data.call.name, "substr") && expr->data.call.args.size == 3)
+        {
+            IROperand *str = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 0), analyzer);
+            IROperand *start = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 1), analyzer);
+            IROperand *len = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 2), analyzer);
+            IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
+            result->data_type = TYPE_STRING;
+            IRInstruction *param1 = ir_instruction_param(str);
+            IRInstruction *param2 = ir_instruction_param(start);
+            IRInstruction *param3 = ir_instruction_param(len);
+            ir_function_add_instruction(ir_func, param1);
+            ir_function_add_instruction(ir_func, param2);
+            ir_function_add_instruction(ir_func, param3);
+            IRInstruction *call = ir_instruction_call(result, "__tl_substr");
+            ir_function_add_instruction(ir_func, call);
+            return result;
+        }
+        else if (string_equal(expr->data.call.name, "strcmp") && expr->data.call.args.size == 2)
+        {
+            IROperand *str1 = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 0), analyzer);
+            IROperand *str2 = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 1), analyzer);
+            IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
+            result->data_type = TYPE_INT;
+            IRInstruction *param1 = ir_instruction_param(str1);
+            IRInstruction *param2 = ir_instruction_param(str2);
+            ir_function_add_instruction(ir_func, param1);
+            ir_function_add_instruction(ir_func, param2);
+            IRInstruction *call = ir_instruction_call(result, "__tl_strcmp");
+            ir_function_add_instruction(ir_func, call);
+            return result;
+        }
+
         IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
         if (string_equal(expr->data.call.name, "test_function"))
         {
@@ -1087,22 +1221,75 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
         IROperand *array = ir_generate_expression(ir_func, expr->data.array_index.array, analyzer);
         IROperand *index = ir_generate_expression(ir_func, expr->data.array_index.index, analyzer);
 
-        char *error_label = ir_function_new_label(ir_func);
-        int array_size = array->array_size;
-        if (debug_enabled)
+        if (array && array->data_type == TYPE_STRING)
         {
-            printf("[DEBUG] Array index: array_size = %d\n", array_size);
+            IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
+            result->data_type = TYPE_STRING;
+            IRInstruction *param1 = ir_instruction_param(array);
+            IRInstruction *param2 = ir_instruction_param(index);
+            ir_function_add_instruction(ir_func, param1);
+            ir_function_add_instruction(ir_func, param2);
+
+            IRInstruction *call = ir_instruction_call(result, "__tl_char_at");
+            ir_function_add_instruction(ir_func, call);
+
+            return result;
         }
-        if (array_size == -1)
-            array_size = 5;
-        IROperand *size = ir_operand_const(array_size);
-        IRInstruction *bounds_check = ir_instruction_bounds_check(index, size, error_label);
-        ir_function_add_instruction(ir_func, bounds_check);
+        else
+        {
+            char *error_label = ir_function_new_label(ir_func);
+            int array_size = array->array_size;
+            if (debug_enabled)
+            {
+                printf("[DEBUG] Array index: array_size = %d\n", array_size);
+            }
+            if (array_size == -1)
+                array_size = 5;
+            IROperand *size = ir_operand_const(array_size);
+            IRInstruction *bounds_check = ir_instruction_bounds_check(index, size, error_label);
+            ir_function_add_instruction(ir_func, bounds_check);
+
+            IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
+
+            if (array->type == IR_OP_VAR)
+            {
+                Symbol *symbol = scope_resolve(analyzer, array->data.var_name);
+                if (symbol && symbol->data_type == TYPE_ARRAY && symbol->element_type == TYPE_STRING)
+                {
+                    result->data_type = TYPE_STRING;
+                }
+                else
+                {
+                    result->data_type = array->data_type;
+                }
+            }
+            else
+            {
+                result->data_type = array->data_type;
+            }
+
+            IRInstruction *load = ir_instruction_array_load(result, array, index);
+            ir_function_add_instruction(ir_func, load);
+
+            return result;
+        }
+    }
+
+    case EXPR_STRING_INDEX:
+    {
+        IROperand *string = ir_generate_expression(ir_func, expr->data.string_index.string, analyzer);
+        IROperand *index = ir_generate_expression(ir_func, expr->data.string_index.index, analyzer);
 
         IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
-        result->data_type = array->data_type;
-        IRInstruction *load = ir_instruction_array_load(result, array, index);
-        ir_function_add_instruction(ir_func, load);
+        result->data_type = TYPE_STRING;
+
+        IRInstruction *param1 = ir_instruction_param(string);
+        IRInstruction *param2 = ir_instruction_param(index);
+        ir_function_add_instruction(ir_func, param1);
+        ir_function_add_instruction(ir_func, param2);
+
+        IRInstruction *call = ir_instruction_call(result, "__tl_char_at");
+        ir_function_add_instruction(ir_func, call);
 
         return result;
     }

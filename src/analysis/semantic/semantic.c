@@ -401,6 +401,50 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
                 return TYPE_VOID;
             }
         }
+        else if (string_equal(expr->data.call.name, "strlen") && expr->data.call.args.size == 1)
+        {
+            DataType arg_type = type_check_expression(analyzer, (Expr *)array_get(&expr->data.call.args, 0));
+            if (arg_type == TYPE_STRING)
+            {
+                return TYPE_INT;
+            }
+            else
+            {
+                semantic_error(analyzer, "strlen() requires a string argument", expr->line, expr->column);
+                return TYPE_VOID;
+            }
+        }
+        else if (string_equal(expr->data.call.name, "substr") && expr->data.call.args.size == 3)
+        {
+            DataType str_type = type_check_expression(analyzer, (Expr *)array_get(&expr->data.call.args, 0));
+            DataType start_type = type_check_expression(analyzer, (Expr *)array_get(&expr->data.call.args, 1));
+            DataType len_type = type_check_expression(analyzer, (Expr *)array_get(&expr->data.call.args, 2));
+
+            if (str_type == TYPE_STRING && start_type == TYPE_INT && len_type == TYPE_INT)
+            {
+                return TYPE_STRING;
+            }
+            else
+            {
+                semantic_error(analyzer, "substr(str, start, len) requires (string, int, int) arguments", expr->line, expr->column);
+                return TYPE_VOID;
+            }
+        }
+        else if (string_equal(expr->data.call.name, "strcmp") && expr->data.call.args.size == 2)
+        {
+            DataType arg1_type = type_check_expression(analyzer, (Expr *)array_get(&expr->data.call.args, 0));
+            DataType arg2_type = type_check_expression(analyzer, (Expr *)array_get(&expr->data.call.args, 1));
+
+            if (arg1_type == TYPE_STRING && arg2_type == TYPE_STRING)
+            {
+                return TYPE_INT;
+            }
+            else
+            {
+                semantic_error(analyzer, "strcmp() requires two string arguments", expr->line, expr->column);
+                return TYPE_VOID;
+            }
+        }
 
         DynamicArray arg_types;
         array_init(&arg_types, expr->data.call.args.size);
@@ -466,21 +510,56 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
             return TYPE_VOID;
         }
 
-        if (array_type != TYPE_ARRAY)
+        if (array_type == TYPE_STRING)
+        {
+            if (index_type != TYPE_INT)
+            {
+                semantic_error(analyzer, "String index must be integer", expr->line, expr->column);
+                return TYPE_VOID;
+            }
+            return TYPE_STRING;
+        }
+        else if (array_type == TYPE_ARRAY)
+        {
+            if (index_type != TYPE_INT)
+            {
+                semantic_error(analyzer, "Array index must be integer", expr->line, expr->column);
+                return TYPE_VOID;
+            }
+            // For now, return TYPE_INT as the element type
+            // In a full implementation, you'd track the actual element type
+            return TYPE_INT;
+        }
+        else
         {
             semantic_error_invalid_operation(analyzer, "[]", array_type, expr->line, expr->column);
+            return TYPE_VOID;
+        }
+    }
+
+    case EXPR_STRING_INDEX:
+    {
+        DataType string_type = type_check_expression(analyzer, expr->data.string_index.string);
+        DataType index_type = type_check_expression(analyzer, expr->data.string_index.index);
+
+        if (string_type == TYPE_VOID || index_type == TYPE_VOID)
+        {
+            return TYPE_VOID;
+        }
+
+        if (string_type != TYPE_STRING)
+        {
+            semantic_error_invalid_operation(analyzer, "[]", string_type, expr->line, expr->column);
             return TYPE_VOID;
         }
 
         if (index_type != TYPE_INT)
         {
-            semantic_error(analyzer, "Array index must be integer", expr->line, expr->column);
+            semantic_error(analyzer, "String index must be integer", expr->line, expr->column);
             return TYPE_VOID;
         }
 
-        // For now, return TYPE_INT as the element type
-        // In a full implementation, you'd track the actual element type
-        return TYPE_INT;
+        return TYPE_STRING;
     }
 
     default:
@@ -488,12 +567,10 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
     }
 }
 
-DataType type_check_statement(SemanticAnalyzer *analyzer, Stmt *stmt)
+static DataType type_check_statement_in_loop(SemanticAnalyzer *analyzer, Stmt *stmt, bool in_loop)
 {
     if (!stmt)
         return TYPE_VOID;
-
-    // Remove static has_return; use local logic in blocks
 
     switch (stmt->type)
     {
@@ -616,10 +693,10 @@ DataType type_check_statement(SemanticAnalyzer *analyzer, Stmt *stmt)
         {
             semantic_error(analyzer, "If condition must be boolean or integer", stmt->line, stmt->column);
         }
-        type_check_statement(analyzer, stmt->data.if_stmt.then_branch);
+        type_check_statement_in_loop(analyzer, stmt->data.if_stmt.then_branch, in_loop);
         if (stmt->data.if_stmt.else_branch)
         {
-            type_check_statement(analyzer, stmt->data.if_stmt.else_branch);
+            type_check_statement_in_loop(analyzer, stmt->data.if_stmt.else_branch, in_loop);
         }
         return TYPE_VOID;
     }
@@ -631,9 +708,23 @@ DataType type_check_statement(SemanticAnalyzer *analyzer, Stmt *stmt)
         {
             semantic_error(analyzer, "While condition must be boolean or integer", stmt->line, stmt->column);
         }
-        type_check_statement(analyzer, stmt->data.while_stmt.body);
+        type_check_statement_in_loop(analyzer, stmt->data.while_stmt.body, true);
         return TYPE_VOID;
     }
+
+    case STMT_BREAK:
+        if (!in_loop)
+        {
+            semantic_error(analyzer, "'break' statement not within a loop", stmt->line, stmt->column);
+        }
+        return TYPE_VOID;
+
+    case STMT_CONTINUE:
+        if (!in_loop)
+        {
+            semantic_error(analyzer, "'continue' statement not within a loop", stmt->line, stmt->column);
+        }
+        return TYPE_VOID;
 
     case STMT_RETURN:
     {
@@ -646,9 +737,10 @@ DataType type_check_statement(SemanticAnalyzer *analyzer, Stmt *stmt)
 
     case STMT_PRINT:
     {
-        if (stmt->data.print_stmt.value)
+        for (size_t i = 0; i < stmt->data.print_stmt.args.size; i++)
         {
-            type_check_expression(analyzer, stmt->data.print_stmt.value);
+            Expr *arg = (Expr *)array_get(&stmt->data.print_stmt.args, i);
+            type_check_expression(analyzer, arg);
         }
         return TYPE_VOID;
     }
@@ -670,7 +762,7 @@ DataType type_check_statement(SemanticAnalyzer *analyzer, Stmt *stmt)
             {
                 semantic_warning_unreachable_code(analyzer, block_stmt->line, block_stmt->column);
             }
-            type_check_statement(analyzer, block_stmt);
+            type_check_statement_in_loop(analyzer, block_stmt, in_loop);
             if (block_stmt->type == STMT_RETURN)
             {
                 found_return = true;
@@ -685,8 +777,13 @@ DataType type_check_statement(SemanticAnalyzer *analyzer, Stmt *stmt)
     }
 
     default:
-        return TYPE_VOID;
+        return type_check_statement(analyzer, stmt);
     }
+}
+
+DataType type_check_statement(SemanticAnalyzer *analyzer, Stmt *stmt)
+{
+    return type_check_statement_in_loop(analyzer, stmt, false);
 }
 
 DataType type_check_function(SemanticAnalyzer *analyzer, Function *func)

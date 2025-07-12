@@ -75,6 +75,13 @@ typedef struct
     char *label;
 } IRInstruction;
 
+typedef struct LoopContext
+{
+    char *loop_start_label;
+    char *loop_end_label;
+    struct LoopContext *parent;
+} LoopContext;
+
 typedef struct
 {
     char *name;
@@ -83,6 +90,7 @@ typedef struct
     DynamicArray instructions;
     int temp_counter;
     int label_counter;
+    LoopContext *current_loop;
 } IRFunction;
 
 typedef struct
@@ -141,5 +149,11 @@ void ir_program_print(const IRProgram *program);
 const char *ir_opcode_to_string(IROpcode opcode);
 int ir_function_new_temp(IRFunction *func);
 char *ir_function_new_label(IRFunction *func);
+
+LoopContext *ir_loop_context_create(char *start_label, char *end_label);
+void ir_loop_context_destroy(LoopContext *context);
+void ir_function_enter_loop(IRFunction *func, char *start_label, char *end_label);
+void ir_function_exit_loop(IRFunction *func);
+LoopContext *ir_function_get_current_loop(IRFunction *func);
 
 #endif

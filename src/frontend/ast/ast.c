@@ -116,6 +116,17 @@ Expr *expr_array_index(Expr *array, Expr *index, int line, int column)
     return expr;
 }
 
+Expr *expr_string_index(Expr *string, Expr *index, int line, int column)
+{
+    Expr *expr = safe_malloc(sizeof(Expr));
+    expr->type = EXPR_STRING_INDEX;
+    expr->line = line;
+    expr->column = column;
+    expr->data.string_index.string = string;
+    expr->data.string_index.index = index;
+    return expr;
+}
+
 Stmt *stmt_expr(Expr *expression, int line, int column)
 {
     Stmt *stmt = safe_malloc(sizeof(Stmt));
@@ -197,6 +208,24 @@ Stmt *stmt_while(Expr *condition, Stmt *body, int line, int column)
     return stmt;
 }
 
+Stmt *stmt_break(int line, int column)
+{
+    Stmt *stmt = safe_malloc(sizeof(Stmt));
+    stmt->type = STMT_BREAK;
+    stmt->line = line;
+    stmt->column = column;
+    return stmt;
+}
+
+Stmt *stmt_continue(int line, int column)
+{
+    Stmt *stmt = safe_malloc(sizeof(Stmt));
+    stmt->type = STMT_CONTINUE;
+    stmt->line = line;
+    stmt->column = column;
+    return stmt;
+}
+
 Stmt *stmt_return(Expr *value, int line, int column)
 {
     Stmt *stmt = safe_malloc(sizeof(Stmt));
@@ -207,13 +236,13 @@ Stmt *stmt_return(Expr *value, int line, int column)
     return stmt;
 }
 
-Stmt *stmt_print_stmt(Expr *value, int line, int column)
+Stmt *stmt_print_stmt(int line, int column)
 {
     Stmt *stmt = safe_malloc(sizeof(Stmt));
     stmt->type = STMT_PRINT;
     stmt->line = line;
     stmt->column = column;
-    stmt->data.print_stmt.value = value;
+    array_init(&stmt->data.print_stmt.args, 4);
     return stmt;
 }
 
@@ -262,6 +291,11 @@ void stmt_add_block_stmt(Stmt *block, Stmt *stmt)
     array_push(&block->data.block.statements, stmt);
 }
 
+void stmt_add_print_arg(Stmt *print_stmt, Expr *arg)
+{
+    array_push(&print_stmt->data.print_stmt.args, arg);
+}
+
 void function_add_param(Function *func, Parameter *param)
 {
     array_push(&func->params, param);
@@ -303,6 +337,10 @@ void expr_destroy(Expr *expr)
     case EXPR_ARRAY_INDEX:
         expr_destroy(expr->data.array_index.array);
         expr_destroy(expr->data.array_index.index);
+        break;
+    case EXPR_STRING_INDEX:
+        expr_destroy(expr->data.string_index.string);
+        expr_destroy(expr->data.string_index.index);
         break;
     case EXPR_LITERAL:
         if (expr->data.literal.is_string_literal && expr->data.literal.value.string_value)
@@ -352,11 +390,18 @@ void stmt_destroy(Stmt *stmt)
         expr_destroy(stmt->data.while_stmt.condition);
         stmt_destroy(stmt->data.while_stmt.body);
         break;
+    case STMT_BREAK:
+    case STMT_CONTINUE:
+        break;
     case STMT_RETURN:
         expr_destroy(stmt->data.return_stmt.value);
         break;
     case STMT_PRINT:
-        expr_destroy(stmt->data.print_stmt.value);
+        for (size_t i = 0; i < stmt->data.print_stmt.args.size; i++)
+        {
+            expr_destroy((Expr *)array_get(&stmt->data.print_stmt.args, i));
+        }
+        array_free(&stmt->data.print_stmt.args);
         break;
     case STMT_BLOCK:
         for (size_t i = 0; i < stmt->data.block.statements.size; i++)
@@ -468,6 +513,11 @@ void expr_print(const Expr *expr, int indent)
         expr_print(expr->data.array_index.array, indent + 1);
         expr_print(expr->data.array_index.index, indent + 1);
         break;
+    case EXPR_STRING_INDEX:
+        printf("StringIndex:\n");
+        expr_print(expr->data.string_index.string, indent + 1);
+        expr_print(expr->data.string_index.index, indent + 1);
+        break;
     }
 
     printf(")\n");
@@ -529,6 +579,12 @@ void stmt_print(const Stmt *stmt, int indent)
         expr_print(stmt->data.while_stmt.condition, indent + 1);
         stmt_print(stmt->data.while_stmt.body, indent + 1);
         break;
+    case STMT_BREAK:
+        printf("Break");
+        break;
+    case STMT_CONTINUE:
+        printf("Continue");
+        break;
     case STMT_RETURN:
         printf("Return:\n");
         if (stmt->data.return_stmt.value)
@@ -538,7 +594,10 @@ void stmt_print(const Stmt *stmt, int indent)
         break;
     case STMT_PRINT:
         printf("Print:\n");
-        expr_print(stmt->data.print_stmt.value, indent + 1);
+        for (size_t i = 0; i < stmt->data.print_stmt.args.size; i++)
+        {
+            expr_print((Expr *)array_get(&stmt->data.print_stmt.args, i), indent + 1);
+        }
         break;
     case STMT_BLOCK:
         printf("Block:\n");

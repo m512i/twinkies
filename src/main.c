@@ -841,6 +841,14 @@ void dump_stmt_json(Stmt *stmt, int indent)
         dump_stmt_json(stmt->data.while_stmt.body, indent + 4);
         break;
 
+    case STMT_BREAK:
+        printf("break_statement\"");
+        break;
+
+    case STMT_CONTINUE:
+        printf("continue_statement\"");
+        break;
+
     case STMT_RETURN:
         printf("return_statement\"");
         if (stmt->data.return_stmt.value)
@@ -855,8 +863,19 @@ void dump_stmt_json(Stmt *stmt, int indent)
     case STMT_PRINT:
         printf("print_statement\",\n");
         print_json_indent(indent + 2);
-        printf("\"value\": ");
-        dump_expr_json(stmt->data.print_stmt.value, indent + 4);
+        printf("\"arguments\": [\n");
+        for (size_t i = 0; i < stmt->data.print_stmt.args.size; i++)
+        {
+            Expr *arg = (Expr *)array_get(&stmt->data.print_stmt.args, i);
+            dump_expr_json(arg, indent + 4);
+            if (i < stmt->data.print_stmt.args.size - 1)
+            {
+                printf(",");
+            }
+            printf("\n");
+        }
+        print_json_indent(indent + 2);
+        printf("]");
         break;
 
     case STMT_BLOCK:
@@ -984,6 +1003,17 @@ void dump_expr_json(Expr *expr, int indent)
         print_json_indent(indent + 2);
         printf("\"index\": ");
         dump_expr_json(expr->data.array_index.index, indent + 4);
+        break;
+
+    case EXPR_STRING_INDEX:
+        printf("string_index\",\n");
+        print_json_indent(indent + 2);
+        printf("\"string\": ");
+        dump_expr_json(expr->data.string_index.string, indent + 4);
+        printf(",\n");
+        print_json_indent(indent + 2);
+        printf("\"index\": ");
+        dump_expr_json(expr->data.string_index.index, indent + 4);
         break;
     }
 
