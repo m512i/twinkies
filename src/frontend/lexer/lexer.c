@@ -202,11 +202,6 @@ static TLTokenType identifier_type(const char *lexeme)
         return TOKEN_FLOAT;
     if (strcmp(lexeme, "double") == 0)
         return TOKEN_DOUBLE;
-<<<<<<< HEAD
-=======
-    if (strcmp(lexeme, "string") == 0)
-        return TOKEN_STRING_TYPE;
->>>>>>> master
     if (strcmp(lexeme, "true") == 0)
         return TOKEN_TRUE;
     if (strcmp(lexeme, "false") == 0)
@@ -310,19 +305,7 @@ static Token string_literal(Lexer *lexer)
 
     advance(lexer);
 
-<<<<<<< HEAD
     Token token = make_token(lexer, TOKEN_IDENTIFIER);
-=======
-    Token token = make_token(lexer, TOKEN_STRING);
-
-    // Extract the string content (without quotes)
-    size_t length = lexer->current - lexer->start - 2; // -2 for the quotes
-    char *string_content = safe_malloc(length + 1);
-    strncpy(string_content, lexer->source + lexer->start + 1, length);
-    string_content[length] = '\0';
-
-    token.literal.string_value = string_content;
->>>>>>> master
     return token;
 }
 
@@ -536,13 +519,6 @@ const char *token_type_to_string(TLTokenType type)
         return "TRUE";
     case TOKEN_FALSE:
         return "FALSE";
-<<<<<<< HEAD
-=======
-    case TOKEN_STRING:
-        return "STRING";
-    case TOKEN_STRING_TYPE:
-        return "STRING_TYPE";
->>>>>>> master
     default:
         return "UNKNOWN";
     }
@@ -570,14 +546,6 @@ void token_print(const Token *token)
         printf(", value: %s", token->literal.bool_value ? "true" : "false");
     }
 
-<<<<<<< HEAD
-=======
-    if (token->type == TOKEN_STRING)
-    {
-        printf(", value: \"%s\"", token->literal.string_value);
-    }
-
->>>>>>> master
     printf("}\n");
 }
 
@@ -588,13 +556,4 @@ void token_destroy(Token *token)
         safe_free(token->lexeme);
         token->lexeme = NULL;
     }
-<<<<<<< HEAD
-=======
-
-    if (token->type == TOKEN_STRING && token->literal.string_value)
-    {
-        safe_free(token->literal.string_value);
-        token->literal.string_value = NULL;
-    }
->>>>>>> master
 }
