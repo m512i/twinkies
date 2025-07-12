@@ -7,6 +7,17 @@ func main() -> int {
     
     let number: int = 42;
     print(number);
+
+    // String concatenation with +
+    let a: string = "foo ";
+    let b: string = "bar ";
+    let c: string = a + b;
+    print(c);
+
+    // String concatenation with concat()
+    let d: string = concat(a, greeting);
+    print(d);
+    print("re" + "tard");
     
     return 0;
 } 

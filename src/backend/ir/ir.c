@@ -931,6 +931,19 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
         IROperand *left = ir_generate_expression(ir_func, expr->data.binary.left, analyzer);
         IROperand *right = ir_generate_expression(ir_func, expr->data.binary.right, analyzer);
 
+        if (expr->data.binary.operator== TOKEN_PLUS && left && right && left->data_type == TYPE_STRING && right->data_type == TYPE_STRING)
+        {
+            IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
+            result->data_type = TYPE_STRING;
+            IRInstruction *param1 = ir_instruction_param(left);
+            IRInstruction *param2 = ir_instruction_param(right);
+            ir_function_add_instruction(ir_func, param1);
+            ir_function_add_instruction(ir_func, param2);
+            IRInstruction *call = ir_instruction_call(result, "__tl_concat");
+            ir_function_add_instruction(ir_func, call);
+            return result;
+        }
+
         IROpcode opcode;
         switch (expr->data.binary.operator)
         {
@@ -1029,6 +1042,20 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
 
     case EXPR_CALL:
     {
+        if (string_equal(expr->data.call.name, "concat") && expr->data.call.args.size == 2)
+        {
+            IROperand *left = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 0), analyzer);
+            IROperand *right = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 1), analyzer);
+            IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
+            result->data_type = TYPE_STRING;
+            IRInstruction *param1 = ir_instruction_param(left);
+            IRInstruction *param2 = ir_instruction_param(right);
+            ir_function_add_instruction(ir_func, param1);
+            ir_function_add_instruction(ir_func, param2);
+            IRInstruction *call = ir_instruction_call(result, "__tl_concat");
+            ir_function_add_instruction(ir_func, call);
+            return result;
+        }
         IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
         if (string_equal(expr->data.call.name, "test_function"))
         {

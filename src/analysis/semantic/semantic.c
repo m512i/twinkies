@@ -352,6 +352,10 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
         case TOKEN_AND:
         case TOKEN_OR:
             return TYPE_BOOL;
+        case TOKEN_PLUS:
+            if (left_type == TYPE_STRING && right_type == TYPE_STRING)
+                return TYPE_STRING;
+            // else fallthrough
         default:
             return TYPE_INT;
         }
@@ -382,6 +386,22 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
 
     case EXPR_CALL:
     {
+        if (string_equal(expr->data.call.name, "concat") && expr->data.call.args.size == 2)
+        {
+            DataType arg1_type = type_check_expression(analyzer, (Expr *)array_get(&expr->data.call.args, 0));
+            DataType arg2_type = type_check_expression(analyzer, (Expr *)array_get(&expr->data.call.args, 1));
+
+            if (arg1_type == TYPE_STRING && arg2_type == TYPE_STRING)
+            {
+                return TYPE_STRING;
+            }
+            else
+            {
+                semantic_error(analyzer, "concat() requires two string arguments", expr->line, expr->column);
+                return TYPE_VOID;
+            }
+        }
+
         DynamicArray arg_types;
         array_init(&arg_types, expr->data.call.args.size);
         bool args_valid = true;
@@ -715,6 +735,12 @@ bool type_check_binary(SemanticAnalyzer *analyzer, TLTokenType operator, DataTyp
     switch (operator)
     {
     case TOKEN_PLUS:
+        if ((is_numeric_type(left_type) && is_numeric_type(right_type)) || (left_type == TYPE_STRING && right_type == TYPE_STRING))
+        {
+            return true;
+        }
+        semantic_error(analyzer, "+ operator requires numeric or string operands", line, column);
+        return false;
     case TOKEN_MINUS:
     case TOKEN_STAR:
     case TOKEN_SLASH:

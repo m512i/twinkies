@@ -395,7 +395,17 @@ void codegen_write_header(CodeGenerator *generator)
     fprintf(generator->output_file, "#include <stdint.h>\n");
     fprintf(generator->output_file, "#include <stdbool.h>\n");
     fprintf(generator->output_file, "#include <inttypes.h>\n");
+    fprintf(generator->output_file, "#include <string.h>\n");
     fprintf(generator->output_file, "\n");
+    fprintf(generator->output_file, "char* __tl_concat(const char* a, const char* b) {\n");
+    fprintf(generator->output_file, "    size_t len_a = strlen(a);\n");
+    fprintf(generator->output_file, "    size_t len_b = strlen(b);\n");
+    fprintf(generator->output_file, "    char* result = (char*)malloc(len_a + len_b + 1);\n");
+    fprintf(generator->output_file, "    if (!result) { fprintf(stderr, \"Out of memory\\n\"); exit(1); }\n");
+    fprintf(generator->output_file, "    strcpy(result, a);\n");
+    fprintf(generator->output_file, "    strcat(result, b);\n");
+    fprintf(generator->output_file, "    return result;\n");
+    fprintf(generator->output_file, "}\n\n");
 
     for (size_t i = 0; i < generator->ir_program->functions.size; i++)
     {

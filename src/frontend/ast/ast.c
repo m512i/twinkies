@@ -9,6 +9,7 @@ Expr *expr_literal_number(int64_t value, int line, int column)
     expr->data.literal.value.number_value = value;
     expr->data.literal.is_bool_literal = false;
     expr->data.literal.is_float_literal = false;
+    expr->data.literal.is_string_literal = false;
     return expr;
 }
 
