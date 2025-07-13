@@ -1,4 +1,5 @@
 #include "backend/codegen.h"
+#include "backend/iroperands.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -369,85 +370,6 @@ void codegen_write_line(CodeGenerator *generator, const char *format, ...)
     fprintf(generator->output_file, "\n");
 
     va_end(args);
-}
-
-void codegen_write_operand(CodeGenerator *generator, IROperand *operand)
-{
-    if (!operand)
-    {
-        fprintf(generator->output_file, "0");
-        return;
-    }
-
-    switch (operand->type)
-    {
-    case IR_OP_TEMP:
-    {
-        char temp_name[32];
-        snprintf(temp_name, sizeof(temp_name), "temp_%d", operand->data.temp_id);
-        fprintf(generator->output_file, "%s", temp_name);
-        break;
-    }
-    case IR_OP_VAR:
-        fprintf(generator->output_file, "%s", operand->data.var_name);
-        break;
-    case IR_OP_CONST:
-        if (operand->is_float_const)
-        {
-            double float_value = (double)operand->data.const_value / 1000000.0;
-            fprintf(generator->output_file, "%f", float_value);
-        }
-        else
-        {
-            fprintf(generator->output_file, "%lld", operand->data.const_value);
-        }
-        break;
-    case IR_OP_STRING_CONST:
-        fprintf(generator->output_file, "\"%s\"", operand->data.string_const_value);
-        break;
-    case IR_OP_LABEL:
-        fprintf(generator->output_file, "%s", operand->data.label_name);
-        break;
-    case IR_OP_NULL:
-        if (operand->data_type == TYPE_INT)
-        {
-            fprintf(generator->output_file, "0");
-        }
-        else if (operand->data_type == TYPE_BOOL)
-        {
-            fprintf(generator->output_file, "false");
-        }
-        else if (operand->data_type == TYPE_STRING)
-        {
-            fprintf(generator->output_file, "NULL");
-        }
-        else
-        {
-            fprintf(generator->output_file, "NULL");
-        }
-        break;
-    }
-}
-
-char *codegen_get_temp_name(CodeGenerator *generator, IROperand *operand)
-{
-    if (operand->type != IR_OP_TEMP)
-        return NULL;
-
-    char temp_key[32];
-    snprintf(temp_key, sizeof(temp_key), "t%d", operand->data.temp_id);
-
-    char *existing_name = hashtable_get(generator->temp_map, temp_key);
-    if (existing_name)
-    {
-        return existing_name;
-    }
-
-    char *new_name = safe_malloc(32);
-    snprintf(new_name, 32, "temp_%d", generator->temp_counter++);
-    hashtable_put(generator->temp_map, temp_key, new_name);
-
-    return new_name;
 }
 
 void codegen_write_header(CodeGenerator *generator)

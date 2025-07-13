@@ -210,50 +210,17 @@ struct Program
     DynamicArray functions;
 };
 
-Expr *expr_literal_number(int64_t value, int line, int column);
-Expr *expr_literal_bool(bool value, int line, int column);
-Expr *expr_literal_float(double value, int line, int column);
-Expr *expr_literal_string(const char *value, int line, int column);
-Expr *expr_literal_null(int line, int column);
-Expr *expr_variable(const char *name, int line, int column);
-Expr *expr_binary(Expr *left, TLTokenType operator, Expr * right, int line, int column);
-Expr *expr_unary(TLTokenType operator, Expr * operand, int line, int column);
-Expr *expr_call(const char *name, int line, int column);
-Expr *expr_group(Expr *expression, int line, int column);
-Expr *expr_array_index(Expr *array, Expr *index, int line, int column);
-Expr *expr_string_index(Expr *string, Expr *index, int line, int column);
-
-Stmt *stmt_expr(Expr *expression, int line, int column);
-Stmt *stmt_var_decl(const char *name, DataType type, Expr *initializer, int line, int column);
-Stmt *stmt_array_decl(const char *name, DataType element_type, int size, Expr *initializer, int line, int column);
-Stmt *stmt_assignment(const char *name, Expr *value, int line, int column);
-Stmt *stmt_array_assignment(Expr *array, Expr *index, Expr *value, int line, int column);
-Stmt *stmt_if(Expr *condition, Stmt *then_branch, Stmt *else_branch, int line, int column);
-Stmt *stmt_while(Expr *condition, Stmt *body, int line, int column);
-Stmt *stmt_break(int line, int column);
-Stmt *stmt_continue(int line, int column);
-Stmt *stmt_return(Expr *value, int line, int column);
-Stmt *stmt_print_stmt(int line, int column);
-Stmt *stmt_block(int line, int column);
-
 Function *function_create(const char *name, DataType return_type);
 Parameter *parameter_create(const char *name, DataType type);
 Program *program_create(void);
 
-void expr_add_call_arg(Expr *call, Expr *arg);
-void stmt_add_block_stmt(Stmt *block, Stmt *stmt);
-void stmt_add_print_arg(Stmt *print_stmt, Expr *arg);
 void function_add_param(Function *func, Parameter *param);
 void program_add_function(Program *program, Function *func);
 
-void expr_destroy(Expr *expr);
-void stmt_destroy(Stmt *stmt);
 void parameter_destroy(Parameter *param);
 void function_destroy(Function *func);
 void program_destroy(Program *program);
 
-void expr_print(const Expr *expr, int indent);
-void stmt_print(const Stmt *stmt, int indent);
 void function_print(const Function *func, int indent);
 void program_print(const Program *program);
 

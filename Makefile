@@ -90,7 +90,11 @@ $(BUILDDIR)/frontend/lexer/lexer.o: $(SRCDIR)/frontend/lexer/lexer.c $(INCLUDEDI
 
 $(BUILDDIR)/frontend/parser/parser.o: $(SRCDIR)/frontend/parser/parser.c $(INCLUDEDIR)/frontend/parser.h $(INCLUDEDIR)/frontend/lexer.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h
 
-$(BUILDDIR)/frontend/ast/ast.o: $(SRCDIR)/frontend/ast/ast.c $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h
+$(BUILDDIR)/frontend/ast/ast.o: $(SRCDIR)/frontend/ast/ast.c $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/frontend/astexpr.h $(INCLUDEDIR)/frontend/aststmt.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h
+
+$(BUILDDIR)/frontend/ast/astexpr.o: $(SRCDIR)/frontend/ast/astexpr.c $(INCLUDEDIR)/frontend/astexpr.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h
+
+$(BUILDDIR)/frontend/ast/aststmt.o: $(SRCDIR)/frontend/ast/aststmt.c $(INCLUDEDIR)/frontend/aststmt.h $(INCLUDEDIR)/frontend/astexpr.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h
 
 $(BUILDDIR)/analysis/semantic/semantic.o: $(SRCDIR)/analysis/semantic/semantic.c $(INCLUDEDIR)/analysis/semantic.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h
 
@@ -99,5 +103,13 @@ $(BUILDDIR)/backend/ir/ir.o: $(SRCDIR)/backend/ir/ir.c $(INCLUDEDIR)/backend/ir.
 $(BUILDDIR)/backend/codegen/codegen.o: $(SRCDIR)/backend/codegen/codegen.c $(INCLUDEDIR)/backend/codegen.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/common.h
 
 $(BUILDDIR)/backend/assembly/codegenasm.o: $(SRCDIR)/backend/assembly/codegenasm.c $(INCLUDEDIR)/backend/codegen.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/common.h
+
+$(BUILDDIR)/flags.o: $(SRCDIR)/flags.c $(INCLUDEDIR)/flags.h $(INCLUDEDIR)/common.h
+
+$(BUILDDIR)/utils.o: $(SRCDIR)/utils.c $(INCLUDEDIR)/utils.h $(INCLUDEDIR)/flags.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h $(INCLUDEDIR)/frontend/parser.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/analysis/semantic.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/backend/codegen.h
+
+$(BUILDDIR)/backend/ir/iroperands.o: $(SRCDIR)/backend/ir/iroperands.c $(INCLUDEDIR)/backend/iroperands.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/backend/ir.h
+
+$(BUILDDIR)/backend/ir/irinstructions.o: $(SRCDIR)/backend/ir/irinstructions.c $(INCLUDEDIR)/backend/irinstructions.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/backend/iroperands.h
 
 .PHONY: all test example clean install uninstall debug release help 
