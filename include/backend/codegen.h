@@ -46,6 +46,7 @@ void codegen_write_indent(CodeGenerator *generator);
 void codegen_write_line(CodeGenerator *generator, const char *format, ...);
 void codegen_write_operand(CodeGenerator *generator, IROperand *operand);
 char *codegen_get_temp_name(CodeGenerator *generator, IROperand *operand);
+void codegen_write_runtime_functions(CodeGenerator *generator);
 void codegen_write_header(CodeGenerator *generator);
 void codegen_write_function_header(CodeGenerator *generator, IRFunction *func);
 void codegen_write_function_footer(CodeGenerator *generator);

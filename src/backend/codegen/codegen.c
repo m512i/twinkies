@@ -372,15 +372,8 @@ void codegen_write_line(CodeGenerator *generator, const char *format, ...)
     va_end(args);
 }
 
-void codegen_write_header(CodeGenerator *generator)
+void codegen_write_runtime_functions(CodeGenerator *generator)
 {
-    fprintf(generator->output_file, "#include <stdio.h>\n");
-    fprintf(generator->output_file, "#include <stdlib.h>\n");
-    fprintf(generator->output_file, "#include <stdint.h>\n");
-    fprintf(generator->output_file, "#include <stdbool.h>\n");
-    fprintf(generator->output_file, "#include <inttypes.h>\n");
-    fprintf(generator->output_file, "#include <string.h>\n");
-    fprintf(generator->output_file, "\n");
     fprintf(generator->output_file, "char* __tl_concat(const char* a, const char* b) {\n");
     fprintf(generator->output_file, "    if (!a) a = \"\";\n");
     fprintf(generator->output_file, "    if (!b) b = \"\";\n");
@@ -392,10 +385,12 @@ void codegen_write_header(CodeGenerator *generator)
     fprintf(generator->output_file, "    strcat(result, b);\n");
     fprintf(generator->output_file, "    return result;\n");
     fprintf(generator->output_file, "}\n\n");
+
     fprintf(generator->output_file, "int64_t __tl_strlen(const char* str) {\n");
     fprintf(generator->output_file, "    if (!str) return 0;\n");
     fprintf(generator->output_file, "    return (int64_t)strlen(str);\n");
     fprintf(generator->output_file, "}\n\n");
+
     fprintf(generator->output_file, "char* __tl_substr(const char* str, int64_t start, int64_t len) {\n");
     fprintf(generator->output_file, "    if (!str) return strdup(\"\");\n");
     fprintf(generator->output_file, "    size_t str_len = strlen(str);\n");
@@ -411,12 +406,19 @@ void codegen_write_header(CodeGenerator *generator)
     fprintf(generator->output_file, "    result[len] = '\\0';\n");
     fprintf(generator->output_file, "    return result;\n");
     fprintf(generator->output_file, "}\n\n");
+
     fprintf(generator->output_file, "int64_t __tl_strcmp(const char* a, const char* b) {\n");
     fprintf(generator->output_file, "    if (!a && !b) return 0;\n");
     fprintf(generator->output_file, "    if (!a) return -1;\n");
     fprintf(generator->output_file, "    if (!b) return 1;\n");
-    fprintf(generator->output_file, "    return (int64_t)strcmp(a, b);\n");
+    fprintf(generator->output_file, "    // Unix-style implementation that returns actual character difference\n");
+    fprintf(generator->output_file, "    while (*a && *a == *b) {\n");
+    fprintf(generator->output_file, "        a++;\n");
+    fprintf(generator->output_file, "        b++;\n");
+    fprintf(generator->output_file, "    }\n");
+    fprintf(generator->output_file, "    return (int64_t)((unsigned char)*a - (unsigned char)*b);\n");
     fprintf(generator->output_file, "}\n\n");
+
     fprintf(generator->output_file, "char* __tl_char_at(const char* str, int64_t index) {\n");
     fprintf(generator->output_file, "    if (!str) return strdup(\"\");\n");
     fprintf(generator->output_file, "    size_t len = strlen(str);\n");
@@ -429,6 +431,19 @@ void codegen_write_header(CodeGenerator *generator)
     fprintf(generator->output_file, "    result[1] = '\\0';\n");
     fprintf(generator->output_file, "    return result;\n");
     fprintf(generator->output_file, "}\n\n");
+}
+
+void codegen_write_header(CodeGenerator *generator)
+{
+    fprintf(generator->output_file, "#include <stdio.h>\n");
+    fprintf(generator->output_file, "#include <stdlib.h>\n");
+    fprintf(generator->output_file, "#include <stdint.h>\n");
+    fprintf(generator->output_file, "#include <stdbool.h>\n");
+    fprintf(generator->output_file, "#include <inttypes.h>\n");
+    fprintf(generator->output_file, "#include <string.h>\n");
+    fprintf(generator->output_file, "\n");
+
+    codegen_write_runtime_functions(generator);
 
     for (size_t i = 0; i < generator->ir_program->functions.size; i++)
     {
