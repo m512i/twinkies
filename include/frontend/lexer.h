@@ -59,6 +59,7 @@ typedef enum
 
     TOKEN_TRUE,
     TOKEN_FALSE,
+    TOKEN_NULL,
 } TLTokenType;
 
 typedef struct

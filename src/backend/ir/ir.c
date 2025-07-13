@@ -68,6 +68,26 @@ IROperand *ir_operand_string_const(const char *value)
     return operand;
 }
 
+IROperand *ir_operand_null(void)
+{
+    IROperand *operand = safe_malloc(sizeof(IROperand));
+    operand->type = IR_OP_NULL;
+    operand->array_size = -1;
+    operand->is_float_const = false;
+    operand->data_type = TYPE_NULL;
+    return operand;
+}
+
+IROperand *ir_operand_null_with_type(DataType data_type)
+{
+    IROperand *operand = safe_malloc(sizeof(IROperand));
+    operand->type = IR_OP_NULL;
+    operand->array_size = -1;
+    operand->is_float_const = false;
+    operand->data_type = data_type;
+    return operand;
+}
+
 IROperand *ir_operand_label(const char *label_name)
 {
     IROperand *operand = safe_malloc(sizeof(IROperand));
@@ -470,6 +490,9 @@ void ir_operand_print(const IROperand *operand)
     case IR_OP_LABEL:
         printf("%s", operand->data.label_name);
         break;
+    case IR_OP_NULL:
+        printf("NULL");
+        break;
     }
 }
 
@@ -776,7 +799,7 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
     switch (stmt->type)
     {
     case STMT_EXPR:
-        ir_generate_expression(ir_func, stmt->data.expr.expression, analyzer);
+        ir_generate_expression(ir_func, stmt->data.expr.expression, analyzer, TYPE_NULL);
         break;
     case STMT_VAR_DECL:
         IRInstruction *var_decl = ir_instruction_var_decl(stmt->data.var_decl.name, stmt->data.var_decl.type);
@@ -784,9 +807,10 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
 
         if (stmt->data.var_decl.initializer)
         {
-            IROperand *value = ir_generate_expression(ir_func, stmt->data.var_decl.initializer, analyzer);
+            IROperand *value = ir_generate_expression(ir_func, stmt->data.var_decl.initializer, analyzer, stmt->data.var_decl.type);
             IROperand *var = ir_operand_var(stmt->data.var_decl.name);
             var->data_type = stmt->data.var_decl.type;
+
             IRInstruction *move = ir_instruction_move(var, value);
             ir_function_add_instruction(ir_func, move);
         }
@@ -796,14 +820,14 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
         ir_function_add_instruction(ir_func, array_decl);
         if (stmt->data.array_decl.initializer)
         {
-            IROperand *value = ir_generate_expression(ir_func, stmt->data.array_decl.initializer, analyzer);
+            IROperand *value = ir_generate_expression(ir_func, stmt->data.array_decl.initializer, analyzer, TYPE_NULL);
             IRInstruction *array_init = ir_instruction_array_init(stmt->data.array_decl.name, stmt->data.array_decl.size, stmt->data.array_decl.element_type, value);
             ir_function_add_instruction(ir_func, array_init);
         }
         break;
     case STMT_ASSIGNMENT:
     {
-        IROperand *value = ir_generate_expression(ir_func, stmt->data.assignment.value, analyzer);
+        IROperand *value = ir_generate_expression(ir_func, stmt->data.assignment.value, analyzer, TYPE_NULL);
         IROperand *var = ir_operand_var(stmt->data.assignment.name);
         IRInstruction *move = ir_instruction_move(var, value);
         ir_function_add_instruction(ir_func, move);
@@ -811,9 +835,9 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
     }
     case STMT_ARRAY_ASSIGNMENT:
     {
-        IROperand *array = ir_generate_expression(ir_func, stmt->data.array_assignment.array, analyzer);
-        IROperand *index = ir_generate_expression(ir_func, stmt->data.array_assignment.index, analyzer);
-        IROperand *value = ir_generate_expression(ir_func, stmt->data.array_assignment.value, analyzer);
+        IROperand *array = ir_generate_expression(ir_func, stmt->data.array_assignment.array, analyzer, TYPE_NULL);
+        IROperand *index = ir_generate_expression(ir_func, stmt->data.array_assignment.index, analyzer, TYPE_NULL);
+        IROperand *value = ir_generate_expression(ir_func, stmt->data.array_assignment.value, analyzer, TYPE_NULL);
 
         char *error_label = ir_function_new_label(ir_func);
         int array_size = array->array_size;
@@ -832,7 +856,7 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
         char *then_label = ir_function_new_label(ir_func);
         char *end_label = ir_function_new_label(ir_func);
 
-        IROperand *condition = ir_generate_expression(ir_func, stmt->data.if_stmt.condition, analyzer);
+        IROperand *condition = ir_generate_expression(ir_func, stmt->data.if_stmt.condition, analyzer, TYPE_BOOL);
         IRInstruction *jump_if_false = ir_instruction_jump_if_false(condition, then_label);
         ir_function_add_instruction(ir_func, jump_if_false);
 
@@ -885,7 +909,7 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
         IRInstruction *loop_lbl = ir_instruction_label(loop_label);
         ir_function_add_instruction(ir_func, loop_lbl);
 
-        IROperand *condition = ir_generate_expression(ir_func, stmt->data.while_stmt.condition, analyzer);
+        IROperand *condition = ir_generate_expression(ir_func, stmt->data.while_stmt.condition, analyzer, TYPE_BOOL);
         IRInstruction *jump_if_false = ir_instruction_jump_if_false(condition, end_label);
         ir_function_add_instruction(ir_func, jump_if_false);
 
@@ -941,7 +965,7 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
     case STMT_RETURN:
         if (stmt->data.return_stmt.value)
         {
-            IROperand *value = ir_generate_expression(ir_func, stmt->data.return_stmt.value, analyzer);
+            IROperand *value = ir_generate_expression(ir_func, stmt->data.return_stmt.value, analyzer, TYPE_NULL);
             IRInstruction *ret = ir_instruction_return(value);
             ir_function_add_instruction(ir_func, ret);
         }
@@ -955,7 +979,7 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
         for (size_t i = 0; i < stmt->data.print_stmt.args.size; i++)
         {
             Expr *arg = (Expr *)array_get(&stmt->data.print_stmt.args, i);
-            IROperand *value = ir_generate_expression(ir_func, arg, analyzer);
+            IROperand *value = ir_generate_expression(ir_func, arg, analyzer, TYPE_NULL);
             IRInstruction *print = ir_instruction_print_op(value);
             ir_function_add_instruction(ir_func, print);
         }
@@ -972,7 +996,7 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
     }
 }
 
-IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnalyzer *analyzer)
+IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnalyzer *analyzer, DataType expected_type)
 {
     if (!expr)
         return NULL;
@@ -1019,8 +1043,18 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
 
     case EXPR_BINARY:
     {
-        IROperand *left = ir_generate_expression(ir_func, expr->data.binary.left, analyzer);
-        IROperand *right = ir_generate_expression(ir_func, expr->data.binary.right, analyzer);
+        DataType left_type = TYPE_NULL;
+        DataType right_type = TYPE_NULL;
+        if (expr->data.binary.left->type == EXPR_NULL_LITERAL)
+        {
+            right_type = type_check_expression(analyzer, expr->data.binary.right);
+        }
+        if (expr->data.binary.right->type == EXPR_NULL_LITERAL)
+        {
+            left_type = type_check_expression(analyzer, expr->data.binary.left);
+        }
+        IROperand *left = ir_generate_expression(ir_func, expr->data.binary.left, analyzer, right_type);
+        IROperand *right = ir_generate_expression(ir_func, expr->data.binary.right, analyzer, left_type);
 
         if (expr->data.binary.operator== TOKEN_PLUS && left && right && left->data_type == TYPE_STRING && right->data_type == TYPE_STRING)
         {
@@ -1110,7 +1144,7 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
 
     case EXPR_UNARY:
     {
-        IROperand *operand = ir_generate_expression(ir_func, expr->data.unary.operand, analyzer);
+        IROperand *operand = ir_generate_expression(ir_func, expr->data.unary.operand, analyzer, TYPE_NULL);
 
         IROpcode opcode;
         switch (expr->data.unary.operator)
@@ -1133,65 +1167,20 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
 
     case EXPR_CALL:
     {
-        if (string_equal(expr->data.call.name, "concat") && expr->data.call.args.size == 2)
-        {
-            IROperand *left = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 0), analyzer);
-            IROperand *right = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 1), analyzer);
-            IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
-            result->data_type = TYPE_STRING;
-            IRInstruction *param1 = ir_instruction_param(left);
-            IRInstruction *param2 = ir_instruction_param(right);
-            ir_function_add_instruction(ir_func, param1);
-            ir_function_add_instruction(ir_func, param2);
-            IRInstruction *call = ir_instruction_call(result, "__tl_concat");
-            ir_function_add_instruction(ir_func, call);
-            return result;
-        }
-        else if (string_equal(expr->data.call.name, "strlen") && expr->data.call.args.size == 1)
-        {
-            IROperand *str = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 0), analyzer);
-            IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
-            result->data_type = TYPE_INT;
-            IRInstruction *param = ir_instruction_param(str);
-            ir_function_add_instruction(ir_func, param);
-            IRInstruction *call = ir_instruction_call(result, "__tl_strlen");
-            ir_function_add_instruction(ir_func, call);
-            return result;
-        }
-        else if (string_equal(expr->data.call.name, "substr") && expr->data.call.args.size == 3)
-        {
-            IROperand *str = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 0), analyzer);
-            IROperand *start = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 1), analyzer);
-            IROperand *len = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 2), analyzer);
-            IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
-            result->data_type = TYPE_STRING;
-            IRInstruction *param1 = ir_instruction_param(str);
-            IRInstruction *param2 = ir_instruction_param(start);
-            IRInstruction *param3 = ir_instruction_param(len);
-            ir_function_add_instruction(ir_func, param1);
-            ir_function_add_instruction(ir_func, param2);
-            ir_function_add_instruction(ir_func, param3);
-            IRInstruction *call = ir_instruction_call(result, "__tl_substr");
-            ir_function_add_instruction(ir_func, call);
-            return result;
-        }
-        else if (string_equal(expr->data.call.name, "strcmp") && expr->data.call.args.size == 2)
-        {
-            IROperand *str1 = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 0), analyzer);
-            IROperand *str2 = ir_generate_expression(ir_func, (Expr *)array_get(&expr->data.call.args, 1), analyzer);
-            IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
-            result->data_type = TYPE_INT;
-            IRInstruction *param1 = ir_instruction_param(str1);
-            IRInstruction *param2 = ir_instruction_param(str2);
-            ir_function_add_instruction(ir_func, param1);
-            ir_function_add_instruction(ir_func, param2);
-            IRInstruction *call = ir_instruction_call(result, "__tl_strcmp");
-            ir_function_add_instruction(ir_func, call);
-            return result;
-        }
-
         IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
-        if (string_equal(expr->data.call.name, "test_function"))
+
+        if (string_equal(expr->data.call.name, "concat") ||
+            string_equal(expr->data.call.name, "substr") ||
+            string_equal(expr->data.call.name, "char_at"))
+        {
+            result->data_type = TYPE_STRING;
+        }
+        else if (string_equal(expr->data.call.name, "strlen") ||
+                 string_equal(expr->data.call.name, "strcmp"))
+        {
+            result->data_type = TYPE_INT;
+        }
+        else if (string_equal(expr->data.call.name, "test_function"))
         {
             result->data_type = TYPE_DOUBLE;
         }
@@ -1203,7 +1192,7 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
         for (size_t i = 0; i < expr->data.call.args.size; i++)
         {
             Expr *arg_expr = (Expr *)array_get(&expr->data.call.args, i);
-            IROperand *arg = ir_generate_expression(ir_func, arg_expr, analyzer);
+            IROperand *arg = ir_generate_expression(ir_func, arg_expr, analyzer, TYPE_NULL);
             IRInstruction *param = ir_instruction_param(arg);
             ir_function_add_instruction(ir_func, param);
         }
@@ -1214,12 +1203,12 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
     }
 
     case EXPR_GROUP:
-        return ir_generate_expression(ir_func, expr->data.group.expression, analyzer);
+        return ir_generate_expression(ir_func, expr->data.group.expression, analyzer, expected_type);
 
     case EXPR_ARRAY_INDEX:
     {
-        IROperand *array = ir_generate_expression(ir_func, expr->data.array_index.array, analyzer);
-        IROperand *index = ir_generate_expression(ir_func, expr->data.array_index.index, analyzer);
+        IROperand *array = ir_generate_expression(ir_func, expr->data.array_index.array, analyzer, TYPE_NULL);
+        IROperand *index = ir_generate_expression(ir_func, expr->data.array_index.index, analyzer, TYPE_NULL);
 
         if (array && array->data_type == TYPE_STRING)
         {
@@ -1277,8 +1266,8 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
 
     case EXPR_STRING_INDEX:
     {
-        IROperand *string = ir_generate_expression(ir_func, expr->data.string_index.string, analyzer);
-        IROperand *index = ir_generate_expression(ir_func, expr->data.string_index.index, analyzer);
+        IROperand *string = ir_generate_expression(ir_func, expr->data.string_index.string, analyzer, TYPE_NULL);
+        IROperand *index = ir_generate_expression(ir_func, expr->data.string_index.index, analyzer, TYPE_NULL);
 
         IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
         result->data_type = TYPE_STRING;
@@ -1291,6 +1280,27 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
         IRInstruction *call = ir_instruction_call(result, "__tl_char_at");
         ir_function_add_instruction(ir_func, call);
 
+        return result;
+    }
+
+    case EXPR_NULL_LITERAL:
+    {
+        IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
+        if (expected_type == TYPE_STRING)
+        {
+            result->data_type = TYPE_STRING;
+        }
+        else if (expected_type == TYPE_NULL)
+        {
+            result->data_type = TYPE_INT;
+        }
+        else
+        {
+            result->data_type = expected_type;
+        }
+        IROperand *null_value = ir_operand_null_with_type(result->data_type);
+        IRInstruction *move = ir_instruction_move(result, null_value);
+        ir_function_add_instruction(ir_func, move);
         return result;
     }
 

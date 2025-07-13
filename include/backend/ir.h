@@ -46,7 +46,8 @@ typedef enum
     IR_OP_VAR,
     IR_OP_CONST,
     IR_OP_STRING_CONST,
-    IR_OP_LABEL
+    IR_OP_LABEL,
+    IR_OP_NULL
 } IROperandType;
 
 typedef struct
@@ -104,6 +105,8 @@ IROperand *ir_operand_array_var(const char *var_name, int size);
 IROperand *ir_operand_const(int64_t value);
 IROperand *ir_operand_float_const(double value);
 IROperand *ir_operand_string_const(const char *value);
+IROperand *ir_operand_null(void);
+IROperand *ir_operand_null_with_type(DataType data_type);
 IROperand *ir_operand_label(const char *label_name);
 
 IRInstruction *ir_instruction_nop(void);
@@ -130,7 +133,7 @@ IRProgram *ir_program_create(void);
 IRProgram *ir_generate(Program *ast_program, SemanticAnalyzer *analyzer);
 IRFunction *ir_generate_function(Function *func, SemanticAnalyzer *analyzer);
 void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *analyzer);
-IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnalyzer *analyzer);
+IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnalyzer *analyzer, DataType expected_type);
 
 void ir_function_add_instruction(IRFunction *func, IRInstruction *instr);
 void ir_function_add_param(IRFunction *func, IROperand *param);

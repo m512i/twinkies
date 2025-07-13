@@ -1015,6 +1015,12 @@ void dump_expr_json(Expr *expr, int indent)
         printf("\"index\": ");
         dump_expr_json(expr->data.string_index.index, indent + 4);
         break;
+
+    case EXPR_NULL_LITERAL:
+        printf("null_literal\",\n");
+        print_json_indent(indent + 2);
+        printf("\"value\": null");
+        break;
     }
 
     printf("\n");

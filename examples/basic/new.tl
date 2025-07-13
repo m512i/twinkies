@@ -6,8 +6,9 @@ func main() -> int {
         print(i);
         if (i == 3) {
             print("Breaking at i=3");
-            break;
+            break; // if continue; will inf loop
         }
+        print(i);
         i = i + 1;
     }
     print("After break loop");

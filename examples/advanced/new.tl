@@ -1,4 +1,26 @@
 func main() -> int {
+    test_string_operations();
+    test_arithmetic_operations();
+    test_boolean_operations();
+    test_comparison_operations();
+    test_array_operations();
+    test_control_flow();
+    test_nested_expressions();
+    test_string_advanced_operations();
+    test_function_calls();
+    test_unary_operations();
+    test_boolean_arithmetic();
+    test_string_arrays();
+    test_complex_boolean_logic();
+    test_nested_if_else();
+    test_string_concatenation();
+    test_array_bounds();
+    test_string_comparisons();
+    
+    return 0;
+}
+
+func test_string_operations() -> int {
     let message: string = "Hello, World!";
     print(message);
     
@@ -35,6 +57,10 @@ func main() -> int {
     let first_char: string = message[0];
     print(first_char);
     
+    return 0;
+}
+
+func test_arithmetic_operations() -> int {
     // Arithmetic operations
     let x: int = 10;
     let y: int = 5;
@@ -50,6 +76,10 @@ func main() -> int {
     print(quotient);
     print(remainder);
     
+    return 0;
+}
+
+func test_boolean_operations() -> int {
     // Boolean operations
     let is_true: bool = true;
     let is_false: bool = false;
@@ -60,6 +90,13 @@ func main() -> int {
     print(and_result);
     print(or_result);
     print(not_result);
+    
+    return 0;
+}
+
+func test_comparison_operations() -> int {
+    let x: int = 10;
+    let y: int = 5;
     
     // Comparison operations
     let eq_test: bool = x == y;
@@ -76,6 +113,10 @@ func main() -> int {
     print(le_test);
     print(ge_test);
     
+    return 0;
+}
+
+func test_array_operations() -> int {
     // Array operations
     let arr: int[5] = 0;
     arr[0] = 10;
@@ -89,6 +130,13 @@ func main() -> int {
     print(arr[2]);
     print(arr[3]);
     print(arr[4]);
+    
+    return 0;
+}
+
+func test_control_flow() -> int {
+    let x: int = 10;
+    let y: int = 5;
     
     // Control flow - if statements
     if (x > y) {
@@ -110,10 +158,21 @@ func main() -> int {
         counter = counter + 1;
     }
     
+    return 0;
+}
+
+func test_nested_expressions() -> int {
+    let x: int = 10;
+    let y: int = 5;
+    
     // Nested expressions
     let complex_expr: int = (x + y) * 2 - (x / y);
     print(complex_expr);
     
+    return 0;
+}
+
+func test_string_advanced_operations() -> int {
     // More string operations
     let str1: string = "Hello";
     let str2: string = "World";
@@ -129,6 +188,10 @@ func main() -> int {
     let char_at: string = combined[6];
     print(char_at);
     
+    return 0;
+}
+
+func test_function_calls() -> int {
     // Function calls with multiple arguments
     let test_str: string = "Testing";
     let test_len: int = strlen(test_str);
@@ -138,6 +201,13 @@ func main() -> int {
     print(test_len);
     print(test_sub);
     print(test_cmp);
+    
+    return 0;
+}
+
+func test_unary_operations() -> int {
+    let x: int = 10;
+    let y: int = 5;
     
     // Negative numbers and unary operations
     let neg_x: int = -x;
@@ -149,6 +219,13 @@ func main() -> int {
     print(neg_x);
     print(abs_diff);
     
+    return 0;
+}
+
+func test_boolean_arithmetic() -> int {
+    let x: int = 10;
+    let y: int = 5;
+    
     // Boolean expressions with arithmetic
     let bool_arith: bool = (x + y) > 10;
     let bool_arith2: bool = (x * y) == 50;
@@ -156,6 +233,10 @@ func main() -> int {
     print(bool_arith);
     print(bool_arith2);
     
+    return 0;
+}
+
+func test_string_arrays() -> int {
     // String array test
     let str_arr: string[3] = "";
     str_arr[0] = "First";
@@ -166,9 +247,22 @@ func main() -> int {
     print(str_arr[1]);
     print(str_arr[2]);
     
+    return 0;
+}
+
+func test_complex_boolean_logic() -> int {
+    let x: int = 10;
+    let y: int = 5;
+    
     // Complex boolean logic
     let complex_bool: bool = (x > 5) && (y < 10) || (x == 10);
     print(complex_bool);
+    
+    return 0;
+}
+
+func test_nested_if_else() -> int {
+    let x: int = 10;
     
     // Nested if-else
     if (x > 15) {
@@ -181,6 +275,10 @@ func main() -> int {
         print(4000);
     }
     
+    return 0;
+}
+
+func test_string_concatenation() -> int {
     // More string concatenation tests
     let part1: string = "Hello";
     let part2: string = " ";
@@ -190,12 +288,27 @@ func main() -> int {
     let final_str: string = part1 + part2 + part3 + part4;
     print(final_str);
     
+    return 0;
+}
+
+func test_array_bounds() -> int {
+    let arr: int[5] = 0;
+    arr[0] = 10;
+    arr[1] = 20;
+    arr[2] = 30;
+    arr[3] = 40;
+    arr[4] = 50;
+    
     // Array bounds testing (should work within bounds)
     let safe_index: int = 2;
     if (safe_index >= 0 && safe_index < 5) {
         print(arr[safe_index]);
     }
     
+    return 0;
+}
+
+func test_string_comparisons() -> int {
     // String comparison tests
     let str_a: string = "apple";
     let str_b: string = "banana";
@@ -208,6 +321,7 @@ func main() -> int {
     print(cmp1);
     print(cmp2);
     print(cmp3);
+    print("nigger");
     
     return 0;
 } 

@@ -99,7 +99,37 @@ void codegen_generate_instruction(CodeGenerator *generator, IRInstruction *instr
         codegen_write_indent(generator);
         codegen_write_operand(generator, instr->result);
         fprintf(generator->output_file, " = ");
-        codegen_write_operand(generator, instr->arg1);
+        if (instr->arg1 && instr->arg1->type == IR_OP_NULL)
+        {
+            if (instr->result && instr->result->data_type == TYPE_INT)
+            {
+                fprintf(generator->output_file, "0");
+            }
+            else if (instr->result && instr->result->data_type == TYPE_BOOL)
+            {
+                fprintf(generator->output_file, "false");
+            }
+            else if (instr->result && instr->result->data_type == TYPE_FLOAT)
+            {
+                fprintf(generator->output_file, "0.0f");
+            }
+            else if (instr->result && instr->result->data_type == TYPE_DOUBLE)
+            {
+                fprintf(generator->output_file, "0.0");
+            }
+            else if (instr->result && instr->result->data_type == TYPE_STRING)
+            {
+                fprintf(generator->output_file, "NULL");
+            }
+            else
+            {
+                fprintf(generator->output_file, "NULL");
+            }
+        }
+        else
+        {
+            codegen_write_operand(generator, instr->arg1);
+        }
         fprintf(generator->output_file, ";\n");
         break;
 
@@ -180,7 +210,20 @@ void codegen_generate_instruction(CodeGenerator *generator, IRInstruction *instr
             codegen_write_operand(generator, instr->result);
             fprintf(generator->output_file, " = ");
         }
-        fprintf(generator->output_file, "%s(", instr->label);
+
+        const char *func_name = instr->label;
+        if (strcmp(func_name, "concat") == 0 ||
+            strcmp(func_name, "substr") == 0 ||
+            strcmp(func_name, "strlen") == 0 ||
+            strcmp(func_name, "strcmp") == 0 ||
+            strcmp(func_name, "char_at") == 0)
+        {
+            fprintf(generator->output_file, "__tl_%s(", func_name);
+        }
+        else
+        {
+            fprintf(generator->output_file, "%s(", func_name);
+        }
 
         for (int i = 0; i < generator->param_count; i++)
         {
@@ -299,6 +342,7 @@ void codegen_generate_instruction(CodeGenerator *generator, IRInstruction *instr
         codegen_write_indent(generator);
         codegen_write_operand(generator, instr->result);
         fprintf(generator->output_file, " = ");
+
         codegen_write_operand(generator, instr->arg1);
         fprintf(generator->output_file, " %s ", ir_opcode_to_string(instr->opcode));
         codegen_write_operand(generator, instr->arg2);
@@ -364,6 +408,24 @@ void codegen_write_operand(CodeGenerator *generator, IROperand *operand)
     case IR_OP_LABEL:
         fprintf(generator->output_file, "%s", operand->data.label_name);
         break;
+    case IR_OP_NULL:
+        if (operand->data_type == TYPE_INT)
+        {
+            fprintf(generator->output_file, "0");
+        }
+        else if (operand->data_type == TYPE_BOOL)
+        {
+            fprintf(generator->output_file, "false");
+        }
+        else if (operand->data_type == TYPE_STRING)
+        {
+            fprintf(generator->output_file, "NULL");
+        }
+        else
+        {
+            fprintf(generator->output_file, "NULL");
+        }
+        break;
     }
 }
 
@@ -398,6 +460,8 @@ void codegen_write_header(CodeGenerator *generator)
     fprintf(generator->output_file, "#include <string.h>\n");
     fprintf(generator->output_file, "\n");
     fprintf(generator->output_file, "char* __tl_concat(const char* a, const char* b) {\n");
+    fprintf(generator->output_file, "    if (!a) a = \"\";\n");
+    fprintf(generator->output_file, "    if (!b) b = \"\";\n");
     fprintf(generator->output_file, "    size_t len_a = strlen(a);\n");
     fprintf(generator->output_file, "    size_t len_b = strlen(b);\n");
     fprintf(generator->output_file, "    char* result = (char*)malloc(len_a + len_b + 1);\n");
@@ -407,9 +471,11 @@ void codegen_write_header(CodeGenerator *generator)
     fprintf(generator->output_file, "    return result;\n");
     fprintf(generator->output_file, "}\n\n");
     fprintf(generator->output_file, "int64_t __tl_strlen(const char* str) {\n");
+    fprintf(generator->output_file, "    if (!str) return 0;\n");
     fprintf(generator->output_file, "    return (int64_t)strlen(str);\n");
     fprintf(generator->output_file, "}\n\n");
     fprintf(generator->output_file, "char* __tl_substr(const char* str, int64_t start, int64_t len) {\n");
+    fprintf(generator->output_file, "    if (!str) return strdup(\"\");\n");
     fprintf(generator->output_file, "    size_t str_len = strlen(str);\n");
     fprintf(generator->output_file, "    if (start < 0 || start >= str_len || len < 0) {\n");
     fprintf(generator->output_file, "        return strdup(\"\");\n");
@@ -424,9 +490,13 @@ void codegen_write_header(CodeGenerator *generator)
     fprintf(generator->output_file, "    return result;\n");
     fprintf(generator->output_file, "}\n\n");
     fprintf(generator->output_file, "int64_t __tl_strcmp(const char* a, const char* b) {\n");
+    fprintf(generator->output_file, "    if (!a && !b) return 0;\n");
+    fprintf(generator->output_file, "    if (!a) return -1;\n");
+    fprintf(generator->output_file, "    if (!b) return 1;\n");
     fprintf(generator->output_file, "    return (int64_t)strcmp(a, b);\n");
     fprintf(generator->output_file, "}\n\n");
     fprintf(generator->output_file, "char* __tl_char_at(const char* str, int64_t index) {\n");
+    fprintf(generator->output_file, "    if (!str) return strdup(\"\");\n");
     fprintf(generator->output_file, "    size_t len = strlen(str);\n");
     fprintf(generator->output_file, "    if (index < 0 || index >= len) {\n");
     fprintf(generator->output_file, "        return strdup(\"\");\n");
@@ -486,6 +556,8 @@ const char *get_c_type_string(DataType type)
         return "char*";
     case TYPE_ARRAY:
         return "int64_t"; // This will be overridden by the actual element type
+    case TYPE_NULL:
+        return "void*";
     default:
         return "int64_t";
     }

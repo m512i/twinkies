@@ -286,6 +286,10 @@ Expr *parse_primary(Parser *parser)
     {
         return expr_literal_bool(false, parser->previous.line, parser->previous.column);
     }
+    if (parser_match(parser, TOKEN_NULL))
+    {
+        return expr_literal_null(parser->previous.line, parser->previous.column);
+    }
     if (parser_match(parser, TOKEN_STRING))
     {
         return expr_literal_string(parser->previous.literal.string_value, parser->previous.line, parser->previous.column);

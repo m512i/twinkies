@@ -51,6 +51,15 @@ Expr *expr_literal_string(const char *value, int line, int column)
     return expr;
 }
 
+Expr *expr_literal_null(int line, int column)
+{
+    Expr *expr = safe_malloc(sizeof(Expr));
+    expr->type = EXPR_NULL_LITERAL;
+    expr->line = line;
+    expr->column = column;
+    return expr;
+}
+
 Expr *expr_variable(const char *name, int line, int column)
 {
     Expr *expr = safe_malloc(sizeof(Expr));
@@ -518,6 +527,9 @@ void expr_print(const Expr *expr, int indent)
         expr_print(expr->data.string_index.string, indent + 1);
         expr_print(expr->data.string_index.index, indent + 1);
         break;
+    case EXPR_NULL_LITERAL:
+        printf("NullLiteral: null");
+        break;
     }
 
     printf(")\n");
@@ -663,6 +675,8 @@ const char *data_type_to_string(DataType type)
         return "double";
     case TYPE_STRING:
         return "string";
+    case TYPE_NULL:
+        return "null";
     default:
         return "unknown";
     }

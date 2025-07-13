@@ -19,7 +19,8 @@ typedef enum
     EXPR_CALL,
     EXPR_GROUP,
     EXPR_ARRAY_INDEX,
-    EXPR_STRING_INDEX
+    EXPR_STRING_INDEX,
+    EXPR_NULL_LITERAL
 } ExprType;
 
 typedef enum
@@ -46,7 +47,8 @@ typedef enum
     TYPE_ARRAY,
     TYPE_FLOAT,
     TYPE_DOUBLE,
-    TYPE_STRING
+    TYPE_STRING,
+    TYPE_NULL
 } DataType;
 
 typedef struct
@@ -212,6 +214,7 @@ Expr *expr_literal_number(int64_t value, int line, int column);
 Expr *expr_literal_bool(bool value, int line, int column);
 Expr *expr_literal_float(double value, int line, int column);
 Expr *expr_literal_string(const char *value, int line, int column);
+Expr *expr_literal_null(int line, int column);
 Expr *expr_variable(const char *name, int line, int column);
 Expr *expr_binary(Expr *left, TLTokenType operator, Expr * right, int line, int column);
 Expr *expr_unary(TLTokenType operator, Expr * operand, int line, int column);

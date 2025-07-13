@@ -562,6 +562,9 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
         return TYPE_STRING;
     }
 
+    case EXPR_NULL_LITERAL:
+        return TYPE_NULL;
+
     default:
         return TYPE_VOID;
     }
@@ -809,6 +812,10 @@ bool type_check_assignment(SemanticAnalyzer *analyzer, DataType target_type, Dat
     {
         return true;
     }
+    if (value_type == TYPE_NULL)
+    {
+        return true;
+    }
     if (is_numeric_type(target_type) && is_numeric_type(value_type))
     {
         semantic_warning_type_conversion(analyzer, value_type, target_type, 0, 0);
@@ -934,7 +941,11 @@ void semantic_error_type_mismatch(SemanticAnalyzer *analyzer, DataType expected,
     snprintf(message, sizeof(message), "Type mismatch: expected %s, got %s",
              data_type_to_string(expected), data_type_to_string(actual));
 
-    if (expected == TYPE_INT && actual == TYPE_BOOL)
+    if (actual == TYPE_NULL)
+    {
+        snprintf(suggestion, sizeof(suggestion), "null can be assigned to any type");
+    }
+    else if (expected == TYPE_INT && actual == TYPE_BOOL)
     {
         snprintf(suggestion, sizeof(suggestion), "Use explicit conversion or comparison operators (==, !=, <, >, etc.)");
     }
@@ -1098,6 +1109,8 @@ bool types_are_compatible(DataType type1, DataType type2)
         return true;
     if (is_numeric_type(type1) && is_numeric_type(type2))
         return true;
+    if (type1 == TYPE_NULL || type2 == TYPE_NULL)
+        return true;
     return false;
 }
 
@@ -1151,7 +1164,13 @@ static Symbol *scope_define_function_overload(SemanticAnalyzer *analyzer, Functi
             make_signature_string(&func->params, sig, sizeof(sig));
             char msg[256];
             snprintf(msg, sizeof(msg), "Function '%s(%s)' already defined", func->name, sig);
-            semantic_error_redefined(analyzer, msg, 0, 0);
+            int line = 0, column = 0;
+            if (func->body)
+            {
+                line = func->body->line;
+                column = func->body->column;
+            }
+            semantic_error_redefined(analyzer, msg, line, column);
             return NULL;
         }
     }
