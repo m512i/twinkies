@@ -120,6 +120,17 @@ Stmt *stmt_print_stmt(int line, int column)
     return stmt;
 }
 
+Stmt *stmt_include(const char *path, IncludeType type, int line, int column)
+{
+    Stmt *stmt = safe_malloc(sizeof(Stmt));
+    stmt->type = STMT_INCLUDE;
+    stmt->line = line;
+    stmt->column = column;
+    stmt->data.include.path = string_copy(path);
+    stmt->data.include.type = type;
+    return stmt;
+}
+
 Stmt *stmt_block(int line, int column)
 {
     Stmt *stmt = safe_malloc(sizeof(Stmt));
@@ -196,8 +207,87 @@ void stmt_destroy(Stmt *stmt)
         }
         array_free(&stmt->data.block.statements);
         break;
+    case STMT_INCLUDE:
+        safe_free(stmt->data.include.path);
+        break;
     }
     safe_free(stmt);
+}
+
+Stmt *stmt_copy(Stmt *stmt)
+{
+    if (!stmt)
+        return NULL;
+
+    Stmt *copy = safe_malloc(sizeof(Stmt));
+    copy->type = stmt->type;
+    copy->line = stmt->line;
+    copy->column = stmt->column;
+
+    switch (stmt->type)
+    {
+    case STMT_EXPR:
+        copy->data.expr.expression = expr_copy(stmt->data.expr.expression);
+        break;
+    case STMT_VAR_DECL:
+        copy->data.var_decl.name = string_copy(stmt->data.var_decl.name);
+        copy->data.var_decl.type = stmt->data.var_decl.type;
+        copy->data.var_decl.initializer = expr_copy(stmt->data.var_decl.initializer);
+        break;
+    case STMT_ARRAY_DECL:
+        copy->data.array_decl.name = string_copy(stmt->data.array_decl.name);
+        copy->data.array_decl.element_type = stmt->data.array_decl.element_type;
+        copy->data.array_decl.size = stmt->data.array_decl.size;
+        copy->data.array_decl.initializer = expr_copy(stmt->data.array_decl.initializer);
+        break;
+    case STMT_ASSIGNMENT:
+        copy->data.assignment.name = string_copy(stmt->data.assignment.name);
+        copy->data.assignment.value = expr_copy(stmt->data.assignment.value);
+        break;
+    case STMT_ARRAY_ASSIGNMENT:
+        copy->data.array_assignment.array = expr_copy(stmt->data.array_assignment.array);
+        copy->data.array_assignment.index = expr_copy(stmt->data.array_assignment.index);
+        copy->data.array_assignment.value = expr_copy(stmt->data.array_assignment.value);
+        break;
+    case STMT_IF:
+        copy->data.if_stmt.condition = expr_copy(stmt->data.if_stmt.condition);
+        copy->data.if_stmt.then_branch = stmt_copy(stmt->data.if_stmt.then_branch);
+        copy->data.if_stmt.else_branch = stmt_copy(stmt->data.if_stmt.else_branch);
+        break;
+    case STMT_WHILE:
+        copy->data.while_stmt.condition = expr_copy(stmt->data.while_stmt.condition);
+        copy->data.while_stmt.body = stmt_copy(stmt->data.while_stmt.body);
+        break;
+    case STMT_RETURN:
+        copy->data.return_stmt.value = expr_copy(stmt->data.return_stmt.value);
+        break;
+    case STMT_PRINT:
+        array_init(&copy->data.print_stmt.args, stmt->data.print_stmt.args.size);
+        for (size_t i = 0; i < stmt->data.print_stmt.args.size; i++)
+        {
+            Expr *arg = (Expr *)array_get(&stmt->data.print_stmt.args, i);
+            array_push(&copy->data.print_stmt.args, expr_copy(arg));
+        }
+        break;
+    case STMT_BLOCK:
+        array_init(&copy->data.block.statements, stmt->data.block.statements.size);
+        for (size_t i = 0; i < stmt->data.block.statements.size; i++)
+        {
+            Stmt *block_stmt = (Stmt *)array_get(&stmt->data.block.statements, i);
+            array_push(&copy->data.block.statements, stmt_copy(block_stmt));
+        }
+        break;
+    case STMT_BREAK:
+    case STMT_CONTINUE:
+        // No additional data to copy
+        break;
+    case STMT_INCLUDE:
+        copy->data.include.path = string_copy(stmt->data.include.path);
+        copy->data.include.type = stmt->data.include.type;
+        break;
+    }
+
+    return copy;
 }
 
 static void print_indent(int indent)
@@ -290,6 +380,10 @@ void stmt_print(const Stmt *stmt, int indent)
         {
             stmt_print((Stmt *)array_get(&stmt->data.block.statements, i), indent + 1);
         }
+        break;
+    case STMT_INCLUDE:
+        printf("Include: %s (%s)", stmt->data.include.path,
+               stmt->data.include.type == INCLUDE_SYSTEM ? "system" : "local");
         break;
     }
 

@@ -148,6 +148,12 @@ void expr_destroy(Expr *expr)
 
     switch (expr->type)
     {
+    case EXPR_LITERAL:
+        if (expr->data.literal.is_string_literal)
+        {
+            safe_free(expr->data.literal.value.string_value);
+        }
+        break;
     case EXPR_VARIABLE:
         safe_free(expr->data.variable.name);
         break;
@@ -162,7 +168,8 @@ void expr_destroy(Expr *expr)
         safe_free(expr->data.call.name);
         for (size_t i = 0; i < expr->data.call.args.size; i++)
         {
-            expr_destroy((Expr *)array_get(&expr->data.call.args, i));
+            Expr *arg = (Expr *)array_get(&expr->data.call.args, i);
+            expr_destroy(arg);
         }
         array_free(&expr->data.call.args);
         break;
@@ -177,16 +184,78 @@ void expr_destroy(Expr *expr)
         expr_destroy(expr->data.string_index.string);
         expr_destroy(expr->data.string_index.index);
         break;
-    case EXPR_LITERAL:
-        if (expr->data.literal.is_string_literal && expr->data.literal.value.string_value)
-        {
-            safe_free(expr->data.literal.value.string_value);
-        }
-        break;
-    default:
+    case EXPR_NULL_LITERAL:
         break;
     }
+
     safe_free(expr);
+}
+
+Expr *expr_copy(Expr *expr)
+{
+    if (!expr)
+        return NULL;
+
+    Expr *copy = safe_malloc(sizeof(Expr));
+    copy->type = expr->type;
+    copy->line = expr->line;
+    copy->column = expr->column;
+
+    switch (expr->type)
+    {
+    case EXPR_LITERAL:
+        copy->data.literal.is_string_literal = expr->data.literal.is_string_literal;
+        copy->data.literal.is_float_literal = expr->data.literal.is_float_literal;
+        if (expr->data.literal.is_string_literal)
+        {
+            copy->data.literal.value.string_value = string_copy(expr->data.literal.value.string_value);
+        }
+        else if (expr->data.literal.is_float_literal)
+        {
+            copy->data.literal.value.float_value = expr->data.literal.value.float_value;
+        }
+        else
+        {
+            copy->data.literal.value.number_value = expr->data.literal.value.number_value;
+        }
+        break;
+    case EXPR_VARIABLE:
+        copy->data.variable.name = string_copy(expr->data.variable.name);
+        break;
+    case EXPR_BINARY:
+        copy->data.binary.left = expr_copy(expr->data.binary.left);
+        copy->data.binary.operator= expr->data.binary.operator;
+        copy->data.binary.right = expr_copy(expr->data.binary.right);
+        break;
+    case EXPR_UNARY:
+        copy->data.unary.operator= expr->data.unary.operator;
+        copy->data.unary.operand = expr_copy(expr->data.unary.operand);
+        break;
+    case EXPR_CALL:
+        copy->data.call.name = string_copy(expr->data.call.name);
+        array_init(&copy->data.call.args, expr->data.call.args.size);
+        for (size_t i = 0; i < expr->data.call.args.size; i++)
+        {
+            Expr *arg = (Expr *)array_get(&expr->data.call.args, i);
+            array_push(&copy->data.call.args, expr_copy(arg));
+        }
+        break;
+    case EXPR_GROUP:
+        copy->data.group.expression = expr_copy(expr->data.group.expression);
+        break;
+    case EXPR_ARRAY_INDEX:
+        copy->data.array_index.array = expr_copy(expr->data.array_index.array);
+        copy->data.array_index.index = expr_copy(expr->data.array_index.index);
+        break;
+    case EXPR_STRING_INDEX:
+        copy->data.string_index.string = expr_copy(expr->data.string_index.string);
+        copy->data.string_index.index = expr_copy(expr->data.string_index.index);
+        break;
+    case EXPR_NULL_LITERAL:
+        break;
+    }
+
+    return copy;
 }
 
 static void print_indent(int indent)

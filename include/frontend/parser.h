@@ -41,10 +41,12 @@ Stmt *parse_break_statement(Parser *parser);
 Stmt *parse_continue_statement(Parser *parser);
 Stmt *parse_return_statement(Parser *parser);
 Stmt *parse_print_statement(Parser *parser);
+Stmt *parse_include_directive(Parser *parser);
 Stmt *parse_expression_statement(Parser *parser);
 Stmt *parse_block(Parser *parser);
 
 Function *parse_function(Parser *parser);
+Function *parse_function_declaration(Parser *parser);
 Parameter *parse_parameter(Parser *parser);
 
 void parser_advance(Parser *parser);

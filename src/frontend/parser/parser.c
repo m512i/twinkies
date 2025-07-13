@@ -448,6 +448,15 @@ Stmt *parse_statement(Parser *parser)
         }
         result = parse_print_statement(parser);
     }
+    else if (parser_match(parser, TOKEN_INCLUDE))
+    {
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Parsing include directive\n");
+            fflush(stdout);
+        }
+        result = parse_include_directive(parser);
+    }
     else if (parser_match(parser, TOKEN_LBRACE))
     {
         if (debug_enabled)
@@ -831,6 +840,127 @@ Stmt *parse_block(Parser *parser)
     return block;
 }
 
+Function *parse_function_declaration(Parser *parser)
+{
+    if (debug_enabled)
+    {
+        printf("[DEBUG] Entered parse_function_declaration\n");
+        fflush(stdout);
+    }
+    parser_consume(parser, TOKEN_IDENTIFIER, "Expect function name.");
+    char *name = string_copy(parser->previous.lexeme);
+    if (debug_enabled)
+    {
+        printf("[DEBUG] Function declaration name: %s\n", name);
+        fflush(stdout);
+    }
+
+    parser_consume(parser, TOKEN_LPAREN, "Expect '(' after function name.");
+    if (debug_enabled)
+    {
+        printf("[DEBUG] Got LPAREN\n");
+        fflush(stdout);
+    }
+
+    Function *function = function_create(name, TYPE_INT);
+    if (!parser_check(parser, TOKEN_RPAREN))
+    {
+        do
+        {
+            if (function->params.size >= 255)
+            {
+                parser_error(parser, "Cannot have more than 255 parameters.");
+            }
+            function_add_param(function, parse_parameter(parser));
+        } while (parser_match(parser, TOKEN_COMMA));
+    }
+
+    parser_consume(parser, TOKEN_RPAREN, "Expect ')' after parameters.");
+    if (debug_enabled)
+    {
+        printf("[DEBUG] Got RPAREN\n");
+        fflush(stdout);
+    }
+    parser_consume(parser, TOKEN_ARROW, "Expect '->' after function parameters.");
+    if (debug_enabled)
+    {
+        printf("[DEBUG] Got ARROW\n");
+        fflush(stdout);
+    }
+
+    if (parser_match(parser, TOKEN_INT))
+    {
+        function->return_type = TYPE_INT;
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: INT\n");
+            fflush(stdout);
+        }
+    }
+    else if (parser_match(parser, TOKEN_BOOL))
+    {
+        function->return_type = TYPE_BOOL;
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: BOOL\n");
+            fflush(stdout);
+        }
+    }
+    else if (parser_match(parser, TOKEN_FLOAT))
+    {
+        function->return_type = TYPE_FLOAT;
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: FLOAT\n");
+            fflush(stdout);
+        }
+    }
+    else if (parser_match(parser, TOKEN_DOUBLE))
+    {
+        function->return_type = TYPE_DOUBLE;
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: DOUBLE\n");
+            fflush(stdout);
+        }
+    }
+    else if (parser_match(parser, TOKEN_STRING_TYPE))
+    {
+        function->return_type = TYPE_STRING;
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: STRING\n");
+            fflush(stdout);
+        }
+    }
+    else
+    {
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Expected return type, got: %s\n", token_type_to_string(parser->current.type));
+            fflush(stdout);
+        }
+        parser_error(parser, "Expect return type.");
+        function_destroy(function);
+        return NULL;
+    }
+
+    if (!parser_match(parser, TOKEN_SEMICOLON))
+    {
+        parser_error(parser, "Expect ';' after function declaration.");
+        function_destroy(function);
+        return NULL;
+    }
+
+    if (debug_enabled)
+    {
+        printf("[DEBUG] Finished parsing function declaration\n");
+        fflush(stdout);
+    }
+
+    return function;
+}
+
 Function *parse_function(Parser *parser)
 {
     if (debug_enabled)
@@ -1031,14 +1161,41 @@ Program *parser_parse(Parser *parser)
                 break;
             }
         }
+        else if (parser_match(parser, TOKEN_INCLUDE))
+        {
+            if (debug_enabled)
+            {
+                printf("[DEBUG] Parsing include directive\n");
+                fflush(stdout);
+            }
+            Stmt *include_stmt = parse_include_directive(parser);
+            if (include_stmt)
+            {
+                if (debug_enabled)
+                {
+                    printf("[DEBUG] Parsed include directive: %s\n", include_stmt->data.include.path);
+                    fflush(stdout);
+                }
+                program_add_include(program, include_stmt);
+            }
+            else
+            {
+                if (debug_enabled)
+                {
+                    printf("[DEBUG] Failed to parse include directive\n");
+                    fflush(stdout);
+                }
+                break;
+            }
+        }
         else
         {
             if (debug_enabled)
             {
-                printf("[DEBUG] Expected function declaration, got: %s\n", token_type_to_string(parser->current.type));
+                printf("[DEBUG] Expected function declaration or include directive, got: %s\n", token_type_to_string(parser->current.type));
                 fflush(stdout);
             }
-            parser_error(parser, "Expect function declaration.");
+            parser_error(parser, "Expect function declaration or include directive.");
             break;
         }
     }
@@ -1049,4 +1206,36 @@ Program *parser_parse(Parser *parser)
         fflush(stdout);
     }
     return program;
+}
+
+Stmt *parse_include_directive(Parser *parser)
+{
+    if (!parser_check(parser, TOKEN_STRING))
+    {
+        parser_error(parser, "Expect string literal after #include");
+        return NULL;
+    }
+
+    char *path = string_copy(parser->current.literal.string_value);
+    IncludeType type = INCLUDE_LOCAL;
+
+    if (path[0] == '<' && path[strlen(path) - 1] == '>')
+    {
+        type = INCLUDE_SYSTEM;
+        char *temp = string_copy(path + 1);
+        safe_free(path);
+        path = temp;
+        path[strlen(path) - 1] = '\0';
+    }
+    else if (path[0] == '"' && path[strlen(path) - 1] == '"')
+    {
+        char *temp = string_copy(path + 1);
+        safe_free(path);
+        path = temp;
+        path[strlen(path) - 1] = '\0';
+    }
+
+    parser_advance(parser);
+
+    return stmt_include(path, type, parser->previous.line, parser->previous.column);
 }

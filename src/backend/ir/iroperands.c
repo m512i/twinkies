@@ -192,7 +192,15 @@ void codegen_write_operand(CodeGenerator *generator, IROperand *operand)
         }
         break;
     case IR_OP_STRING_CONST:
-        fprintf(generator->output_file, "\"%s\"", operand->data.string_const_value);
+        // Special case: if the string is "\0", generate as character literal
+        if (string_equal(operand->data.string_const_value, "\\0"))
+        {
+            fprintf(generator->output_file, "'\\0'");
+        }
+        else
+        {
+            fprintf(generator->output_file, "\"%s\"", operand->data.string_const_value);
+        }
         break;
     case IR_OP_LABEL:
         fprintf(generator->output_file, "%s", operand->data.label_name);

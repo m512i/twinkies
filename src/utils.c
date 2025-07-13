@@ -1,8 +1,10 @@
 #include "utils.h"
 #include "flags.h"
+#include "modules.h"
 #include "frontend/lexer.h"
 #include "frontend/parser.h"
 #include "frontend/ast.h"
+#include "frontend/aststmt.h"
 #include "analysis/semantic.h"
 #include "backend/ir.h"
 #include "backend/codegen.h"
@@ -485,6 +487,14 @@ void dump_stmt_json(Stmt *stmt, int indent)
         print_json_indent(indent + 2);
         printf("]");
         break;
+
+    case STMT_INCLUDE:
+        printf("include_directive\",\n");
+        print_json_indent(indent + 2);
+        printf("\"path\": \"%s\",\n", stmt->data.include.path);
+        print_json_indent(indent + 2);
+        printf("\"type\": \"%s\"", stmt->data.include.type == INCLUDE_SYSTEM ? "system" : "local");
+        break;
     }
 
     printf("\n");
@@ -626,6 +636,297 @@ void print_json_indent(int indent)
     }
 }
 
+bool compile_multiple_files(DynamicArray *input_filenames, const char *output_filename, bool verbose, bool assembly_output)
+{
+    if (verbose)
+    {
+        printf("Using built-in specs.\n");
+        printf("COLLECT_GCC=%s\n", "compiler.exe");
+        printf("Target: %s\n", get_target_machine());
+        printf("Configured with: --prefix=/usr/local --enable-languages=c\n");
+        printf("Thread model: posix\n");
+        printf("gcc version 1.0.0 (Twink Language Compiler)\n");
+        printf("COLLECT_GCC_OPTIONS='-o' '%s'\n", output_filename);
+        if (assembly_output)
+        {
+            printf(" %s %s", get_assembler_command(), output_filename);
+            for (size_t i = 0; i < input_filenames->size; i++)
+            {
+                const char *filename = (const char *)array_get(input_filenames, i);
+                printf(" %s", filename);
+            }
+            printf("\n");
+            printf(" %s %s %s\n", get_linker_command(), output_filename, output_filename);
+        }
+        else
+        {
+            printf(" %s %s", get_assembler_command(), output_filename);
+            for (size_t i = 0; i < input_filenames->size; i++)
+            {
+                const char *filename = (const char *)array_get(input_filenames, i);
+                printf(" %s", filename);
+            }
+            printf("\n");
+            printf(" %s %s %s\n", get_linker_command(), output_filename, output_filename);
+        }
+    }
+
+    if (debug_enabled)
+    {
+        printf("[DEBUG] Entered compile_multiple_files with %zu files\n", input_filenames->size);
+        fflush(stdout);
+    }
+
+    Program *combined_program = program_create();
+    ErrorContext *combined_error_context = error_context_create("combined", "");
+
+    for (size_t i = 0; i < input_filenames->size; i++)
+    {
+        const char *input_filename = (const char *)array_get(input_filenames, i);
+
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Processing file %zu: %s\n", i, input_filename);
+            fflush(stdout);
+        }
+
+        char *source = read_file(input_filename);
+        if (!source)
+        {
+            if (debug_enabled)
+            {
+                printf("[DEBUG] Failed to read input file: %s\n", input_filename);
+                fflush(stdout);
+            }
+            program_destroy(combined_program);
+            error_context_destroy(combined_error_context);
+            return false;
+        }
+
+        ErrorContext *file_error_context = error_context_create(input_filename, source);
+        Error error;
+        error_init(&error);
+
+        Lexer *lexer = lexer_create(source, &error);
+        if (error.type != ERROR_NONE)
+        {
+            error_context_add_error(file_error_context, error.type, SEVERITY_ERROR,
+                                    error.message, error.suggestion, error.line, error.column);
+            error_init(&error);
+        }
+
+        Parser *parser = NULL;
+        Program *file_program = NULL;
+        if (lexer)
+        {
+            parser = parser_create(lexer, file_error_context);
+            if (error.type != ERROR_NONE)
+            {
+                error_context_add_error(file_error_context, error.type, SEVERITY_ERROR,
+                                        error.message, error.suggestion, error.line, error.column);
+                error_init(&error);
+            }
+            else
+            {
+                file_program = parser_parse(parser);
+
+                if (error.type != ERROR_NONE)
+                {
+                    error_context_add_error(file_error_context, error.type, SEVERITY_ERROR,
+                                            error.message, error.suggestion, error.line, error.column);
+                    error_init(&error);
+                }
+            }
+        }
+
+        if (file_program)
+        {
+            for (size_t j = 0; j < file_program->functions.size; j++)
+            {
+                Function *func = (Function *)array_get(&file_program->functions, j);
+                Function *func_copy = function_create(func->name, func->return_type);
+
+                for (size_t k = 0; k < func->params.size; k++)
+                {
+                    Parameter *param = (Parameter *)array_get(&func->params, k);
+                    Parameter *param_copy = safe_malloc(sizeof(Parameter));
+                    param_copy->name = string_copy(param->name);
+                    param_copy->type = param->type;
+                    array_push(&func_copy->params, param_copy);
+                }
+
+                if (func->body)
+                {
+                    func_copy->body = stmt_copy(func->body);
+                }
+
+                array_push(&combined_program->functions, func_copy);
+            }
+
+            for (size_t j = 0; j < file_program->includes.size; j++)
+            {
+                char *include = (char *)array_get(&file_program->includes, j);
+                array_push(&combined_program->includes, string_copy(include));
+            }
+
+            program_destroy(file_program);
+        }
+
+        for (size_t j = 0; j < file_error_context->count; j++)
+        {
+            Error *file_error = &file_error_context->errors[j];
+            error_context_add_error(combined_error_context, file_error->type, file_error->severity,
+                                    file_error->message, file_error->suggestion, file_error->line, file_error->column);
+        }
+
+        error_context_destroy(file_error_context);
+        if (parser)
+            parser_destroy(parser);
+        if (lexer)
+            lexer_destroy(lexer);
+        safe_free(source);
+    }
+
+    SemanticAnalyzer *analyzer = NULL;
+    if (combined_program)
+    {
+        analyzer = semantic_create(combined_program, combined_error_context);
+        if (!semantic_analyze(analyzer))
+        {
+            // Semantic errors are already added to error_context by the analyzer
+        }
+    }
+
+    if (error_context_has_errors(combined_error_context))
+    {
+        error_context_print_all(combined_error_context);
+        error_context_destroy(combined_error_context);
+        if (analyzer)
+            semantic_destroy(analyzer);
+        if (combined_program)
+            program_destroy(combined_program);
+        return false;
+    }
+
+    if (combined_error_context->count > 0)
+    {
+        error_context_print_all(combined_error_context);
+        combined_error_context->count = 0;
+    }
+
+    IRProgram *ir_program = NULL;
+    if (analyzer && combined_program)
+    {
+        ir_program = ir_generate(combined_program, analyzer);
+        if (!ir_program)
+        {
+            error_context_add_error(combined_error_context, ERROR_CODEGEN, SEVERITY_ERROR,
+                                    "Failed to generate intermediate representation",
+                                    "Check for unsupported language constructs", 0, 0);
+        }
+    }
+
+    if (combined_error_context->count > 0)
+    {
+        error_context_print_all(combined_error_context);
+        error_context_destroy(combined_error_context);
+        if (ir_program)
+            ir_program_destroy(ir_program);
+        if (analyzer)
+            semantic_destroy(analyzer);
+        if (combined_program)
+            program_destroy(combined_program);
+        return false;
+    }
+
+    FILE *output_file = fopen(output_filename, "w");
+    if (!output_file)
+    {
+        error_context_add_error(combined_error_context, ERROR_CODEGEN, SEVERITY_ERROR,
+                                "Cannot create output file",
+                                "Check file permissions and disk space", 0, 0);
+        error_context_print_all(combined_error_context);
+        error_context_destroy(combined_error_context);
+        if (ir_program)
+            ir_program_destroy(ir_program);
+        if (analyzer)
+            semantic_destroy(analyzer);
+        if (combined_program)
+            program_destroy(combined_program);
+        return false;
+    }
+
+    CodeGenerator *generator = NULL;
+    bool success = false;
+    Error error;
+    error_init(&error);
+
+    if (assembly_output)
+    {
+        generator = codegenasm_create(ir_program, output_file, &error);
+    }
+    else
+    {
+        generator = codegen_create(ir_program, output_file, &error);
+    }
+
+    if (error.type != ERROR_NONE)
+    {
+        error_context_add_error(combined_error_context, error.type, SEVERITY_ERROR,
+                                error.message, error.suggestion, error.line, error.column);
+    }
+    else if (generator)
+    {
+        if (assembly_output)
+        {
+            success = codegenasm_generate(generator);
+        }
+        else
+        {
+            success = codegen_generate(generator);
+        }
+
+        if (!success)
+        {
+            error_context_add_error(combined_error_context, ERROR_CODEGEN, SEVERITY_ERROR,
+                                    "Code generation failed",
+                                    "Check for unsupported language constructs", 0, 0);
+        }
+    }
+
+    if (generator)
+    {
+        codegen_destroy(generator);
+    }
+    fclose(output_file);
+
+    if (combined_error_context->count > 0)
+    {
+        error_context_print_all(combined_error_context);
+        error_context_destroy(combined_error_context);
+        if (ir_program)
+            ir_program_destroy(ir_program);
+        if (analyzer)
+            semantic_destroy(analyzer);
+        if (combined_program)
+            program_destroy(combined_program);
+        return false;
+    }
+
+    error_context_destroy(combined_error_context);
+    if (ir_program)
+        ir_program_destroy(ir_program);
+    if (analyzer)
+        semantic_destroy(analyzer);
+    if (combined_program)
+        program_destroy(combined_program);
+
+    printf("Successfully compiled %zu files to '%s'\n", input_filenames->size, output_filename);
+    fflush(stdout);
+
+    return true;
+}
+
 bool compile_file(const char *input_filename, const char *output_filename, bool verbose, bool assembly_output)
 {
     if (verbose)
@@ -752,6 +1053,10 @@ bool compile_file(const char *input_filename, const char *output_filename, bool 
                                     "Failed to generate intermediate representation",
                                     "Check for unsupported language constructs", 0, 0);
         }
+        else if (debug_enabled)
+        {
+            printf("[DEBUG] compile_file: IR program created with %zu functions\n", ir_program->functions.size);
+        }
     }
 
     if (error_context->count > 0)
@@ -813,6 +1118,11 @@ bool compile_file(const char *input_filename, const char *output_filename, bool 
     }
     else if (generator)
     {
+        if (debug_enabled)
+        {
+            printf("[DEBUG] compile_file: Code generator created, starting generation\n");
+        }
+
         if (assembly_output)
         {
             success = codegenasm_generate(generator);
@@ -828,6 +1138,14 @@ bool compile_file(const char *input_filename, const char *output_filename, bool 
                                     "Code generation failed",
                                     "Check for unsupported language constructs", 0, 0);
         }
+        else if (debug_enabled)
+        {
+            printf("[DEBUG] compile_file: Code generation completed successfully\n");
+        }
+    }
+    else if (debug_enabled)
+    {
+        printf("[DEBUG] compile_file: Failed to create code generator\n");
     }
 
     if (generator)
@@ -883,6 +1201,379 @@ bool compile_file(const char *input_filename, const char *output_filename, bool 
         printf("[DEBUG] Exiting compile_file\n");
         fflush(stdout);
     }
+    return true;
+}
+
+bool compile_module_system(const char *input_filename, const char *output_filename, bool verbose,
+                           const char *module_output_dir, DynamicArray *include_paths)
+{
+    if (verbose)
+    {
+        printf("Compiling with module system\n");
+        printf("Input file: %s\n", input_filename);
+        printf("Output file: %s\n", output_filename);
+        printf("Module output directory: %s\n", module_output_dir);
+    }
+
+    ModuleManager *manager = module_manager_create();
+    if (verbose)
+    {
+        manager->verbose = true;
+    }
+
+    if (module_output_dir)
+    {
+        manager->output_directory = string_copy(module_output_dir);
+    }
+
+    module_manager_add_include_path(manager, ".");
+    module_manager_add_include_path(manager, "./build");
+
+    if (include_paths)
+    {
+        for (size_t i = 0; i < include_paths->size; i++)
+        {
+            char *path = (char *)array_get(include_paths, i);
+            module_manager_add_include_path(manager, path);
+        }
+    }
+
+    char *source = read_file(input_filename);
+    if (!source)
+    {
+        printf("Error: Cannot read input file '%s'\n", input_filename);
+        module_manager_destroy(manager);
+        return false;
+    }
+
+    ErrorContext *error_context = error_context_create(input_filename, source);
+    Error error = {ERROR_NONE, SEVERITY_ERROR, "", "", 0, 0, "", 0, 0};
+
+    Lexer *lexer = lexer_create(source, &error);
+    if (error.type != ERROR_NONE)
+    {
+        error_context_add_error(error_context, error.type, SEVERITY_ERROR,
+                                error.message, error.suggestion, error.line, error.column);
+        error_init(&error);
+    }
+
+    Parser *parser = NULL;
+    Program *program = NULL;
+    if (lexer)
+    {
+        parser = parser_create(lexer, error_context);
+        if (error.type != ERROR_NONE)
+        {
+            error_context_add_error(error_context, error.type, SEVERITY_ERROR,
+                                    error.message, error.suggestion, error.line, error.column);
+            error_init(&error);
+        }
+        else
+        {
+            program = parser_parse(parser);
+        }
+    }
+
+    if (error_context_has_errors(error_context))
+    {
+        error_context_print_all(error_context);
+        error_context_destroy(error_context);
+        if (program)
+            program_destroy(program);
+        if (parser)
+            parser_destroy(parser);
+        if (lexer)
+            lexer_destroy(lexer);
+        safe_free(source);
+        module_manager_destroy(manager);
+        return false;
+    }
+
+    if (program)
+    {
+        for (size_t i = 0; i < program->includes.size; i++)
+        {
+            Stmt *stmt = (Stmt *)array_get(&program->includes, i);
+            if (stmt->type == STMT_INCLUDE)
+            {
+                const char *include_path = stmt->data.include.path;
+                IncludeType include_type = stmt->data.include.type;
+
+                if (verbose)
+                {
+                    printf("Processing include: %s (type: %s)\n",
+                           include_path,
+                           include_type == INCLUDE_SYSTEM ? "system" : "local");
+                }
+
+                if (verbose)
+                {
+                    printf("[DEBUG] Resolving include: %s (type: %s)\n",
+                           include_path,
+                           include_type == INCLUDE_SYSTEM ? "system" : "local");
+                }
+
+                char *resolved_path = module_manager_resolve_include(manager, include_path, include_type);
+                if (!resolved_path)
+                {
+                    printf("Error: Cannot resolve include '%s'\n", include_path);
+                    error_context_add_error(error_context, ERROR_PARSER, SEVERITY_ERROR,
+                                            "Cannot resolve include",
+                                            "Check if the file exists and is in the include path",
+                                            stmt->line, stmt->column);
+                    continue;
+                }
+
+                if (verbose)
+                {
+                    printf("[DEBUG] Resolved include '%s' to '%s'\n", include_path, resolved_path);
+                }
+
+                char *module_name = get_module_name_from_path(resolved_path);
+                Module *module = module_create(module_name, resolved_path);
+
+                if (verbose)
+                {
+                    printf("Created module: %s from %s\n", module_name, resolved_path);
+                }
+
+                if (!module_manager_add_module(manager, module))
+                {
+                    printf("Warning: Module %s already exists\n", module_name);
+                    module_destroy(module);
+                    safe_free(module_name);
+                    safe_free(resolved_path);
+                    continue;
+                }
+
+                if (verbose)
+                {
+                    printf("[DEBUG] Compiling module: %s\n", module_name);
+                }
+
+                if (!module_compile_source(manager, module))
+                {
+                    printf("Error: Failed to compile module %s\n", module_name);
+                    error_context_add_error(error_context, ERROR_PARSER, SEVERITY_ERROR,
+                                            "Failed to compile included module",
+                                            "Check for syntax errors in the included file",
+                                            stmt->line, stmt->column);
+                }
+                else if (verbose)
+                {
+                    printf("[DEBUG] Successfully compiled module: %s\n", module_name);
+                }
+
+                safe_free(module_name);
+                safe_free(resolved_path);
+            }
+        }
+    }
+
+    if (error_context_has_errors(error_context))
+    {
+        error_context_print_all(error_context);
+        error_context_destroy(error_context);
+        if (program)
+            program_destroy(program);
+        if (parser)
+            parser_destroy(parser);
+        if (lexer)
+            lexer_destroy(lexer);
+        safe_free(source);
+        module_manager_destroy(manager);
+        return false;
+    }
+
+    SemanticAnalyzer *analyzer = NULL;
+    if (program)
+    {
+        analyzer = semantic_create(program, error_context);
+
+        for (size_t i = 0; i < manager->modules.size; i++)
+        {
+            Module *module = (Module *)array_get(&manager->modules, i);
+            if (verbose)
+            {
+                printf("Processing module: %s\n", module->name);
+                printf("Module has %zu exported symbols\n", module->exported_symbols.size);
+                printf("Module has %zu functions in AST\n", module->ast ? module->ast->functions.size : 0);
+            }
+
+            if (module->ast)
+            {
+                for (size_t j = 0; j < module->exported_symbols.size; j++)
+                {
+                    char *symbol_name = (char *)array_get(&module->exported_symbols, j);
+                    if (verbose)
+                    {
+                        printf("Processing exported symbol: %s\n", symbol_name);
+                    }
+
+                    for (size_t k = 0; k < module->ast->functions.size; k++)
+                    {
+                        Function *func = (Function *)array_get(&module->ast->functions, k);
+                        if (strcmp(func->name, symbol_name) == 0)
+                        {
+                            if (verbose)
+                            {
+                                printf("Found function %s in module %s, adding to global scope\n", symbol_name, module->name);
+                            }
+                            semantic_add_global_function_with_params(analyzer, func);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!semantic_analyze(analyzer))
+        {
+            // Semantic errors are already added to error_context by the analyzer
+        }
+    }
+
+    if (error_context_has_errors(error_context))
+    {
+        error_context_print_all(error_context);
+        error_context_destroy(error_context);
+        if (analyzer)
+            semantic_destroy(analyzer);
+        if (program)
+            program_destroy(program);
+        if (parser)
+            parser_destroy(parser);
+        if (lexer)
+            lexer_destroy(lexer);
+        safe_free(source);
+        module_manager_destroy(manager);
+        return false;
+    }
+
+    if (error_context->count > 0)
+    {
+        error_context_print_all(error_context);
+        error_context->count = 0;
+    }
+
+    IRProgram *ir_program = NULL;
+    if (analyzer && program)
+    {
+        ir_program = ir_generate_with_modules(program, analyzer, manager);
+        if (!ir_program)
+        {
+            error_context_add_error(error_context, ERROR_CODEGEN, SEVERITY_ERROR,
+                                    "Failed to generate intermediate representation",
+                                    "Check for unsupported language constructs", 0, 0);
+        }
+    }
+
+    if (error_context->count > 0)
+    {
+        error_context_print_all(error_context);
+        error_context_destroy(error_context);
+        if (ir_program)
+            ir_program_destroy(ir_program);
+        if (analyzer)
+            semantic_destroy(analyzer);
+        if (program)
+            program_destroy(program);
+        if (parser)
+            parser_destroy(parser);
+        if (lexer)
+            lexer_destroy(lexer);
+        safe_free(source);
+        module_manager_destroy(manager);
+        return false;
+    }
+
+    FILE *output_file = fopen(output_filename, "w");
+    if (!output_file)
+    {
+        error_context_add_error(error_context, ERROR_CODEGEN, SEVERITY_ERROR,
+                                "Cannot create output file",
+                                "Check file permissions and disk space", 0, 0);
+        error_context_print_all(error_context);
+        error_context_destroy(error_context);
+        if (ir_program)
+            ir_program_destroy(ir_program);
+        if (analyzer)
+            semantic_destroy(analyzer);
+        if (program)
+            program_destroy(program);
+        if (parser)
+            parser_destroy(parser);
+        if (lexer)
+            lexer_destroy(lexer);
+        safe_free(source);
+        module_manager_destroy(manager);
+        return false;
+    }
+
+    CodeGenerator *generator = NULL;
+    bool success = false;
+
+    generator = codegen_create(ir_program, output_file, &error);
+
+    if (error.type != ERROR_NONE)
+    {
+        error_context_add_error(error_context, error.type, SEVERITY_ERROR,
+                                error.message, error.suggestion, error.line, error.column);
+    }
+    else if (generator)
+    {
+        success = codegen_generate(generator);
+
+        if (!success)
+        {
+            error_context_add_error(error_context, ERROR_CODEGEN, SEVERITY_ERROR,
+                                    "Code generation failed",
+                                    "Check for unsupported language constructs", 0, 0);
+        }
+    }
+
+    if (generator)
+    {
+        codegen_destroy(generator);
+    }
+    fclose(output_file);
+
+    if (error_context->count > 0)
+    {
+        error_context_print_all(error_context);
+        error_context_destroy(error_context);
+        if (ir_program)
+            ir_program_destroy(ir_program);
+        if (analyzer)
+            semantic_destroy(analyzer);
+        if (program)
+            program_destroy(program);
+        if (parser)
+            parser_destroy(parser);
+        if (lexer)
+            lexer_destroy(lexer);
+        safe_free(source);
+        module_manager_destroy(manager);
+        return false;
+    }
+
+    error_context_destroy(error_context);
+    if (ir_program)
+        ir_program_destroy(ir_program);
+    if (analyzer)
+        semantic_destroy(analyzer);
+    if (program)
+        program_destroy(program);
+    if (parser)
+        parser_destroy(parser);
+    if (lexer)
+        lexer_destroy(lexer);
+    safe_free(source);
+    module_manager_destroy(manager);
+
+    printf("Successfully compiled '%s' to '%s' with module system\n", input_filename, output_filename);
+    fflush(stdout);
+
     return true;
 }
 

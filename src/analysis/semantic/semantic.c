@@ -181,6 +181,22 @@ Symbol *scope_define_array(SemanticAnalyzer *analyzer, const char *name, DataTyp
     return symbol;
 }
 
+Symbol *scope_define_function(SemanticAnalyzer *analyzer, const char *name, DataType return_type)
+{
+    Function *func = safe_malloc(sizeof(Function));
+    func->name = string_copy(name);
+    func->return_type = return_type;
+    array_init(&func->params, 0);
+    func->body = NULL;
+
+    Symbol *symbol = scope_define_function_overload(analyzer, func);
+
+    safe_free(func->name);
+    safe_free(func);
+
+    return symbol;
+}
+
 Symbol *scope_resolve(SemanticAnalyzer *analyzer, const char *name)
 {
     if (debug_enabled)

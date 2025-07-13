@@ -1,4 +1,5 @@
 #include "frontend/lexer.h"
+#include "flags.h"
 #include <ctype.h>
 
 typedef struct
@@ -86,6 +87,8 @@ static bool match(Lexer *lexer, char expected)
     return true;
 }
 
+static Token make_token(Lexer *lexer, TLTokenType type);
+
 static void skip_whitespace(Lexer *lexer)
 {
     while (!is_at_end(lexer))
@@ -109,6 +112,73 @@ static void skip_whitespace(Lexer *lexer)
             break;
         }
     }
+}
+
+static Token handle_preprocessor_directive(Lexer *lexer)
+{
+    advance(lexer);
+
+    while (!is_at_end(lexer) && (peek(lexer) == ' ' || peek(lexer) == '\t'))
+    {
+        advance(lexer);
+    }
+
+    lexer->start = lexer->current;
+
+    if (debug_enabled)
+    {
+        printf("[DEBUG] After #, current char: '%c', remaining: %s\n",
+               peek(lexer), lexer->source + lexer->current);
+        fflush(stdout);
+    }
+
+    if (debug_enabled)
+    {
+        printf("[DEBUG] Checking for 'include': current=%zu, strlen=%zu, remaining='%.7s'\n",
+               lexer->current, strlen(lexer->source), lexer->source + lexer->current);
+        fflush(stdout);
+    }
+
+    if (!is_at_end(lexer) &&
+        (lexer->current + 7) <= strlen(lexer->source))
+    {
+        char buffer[8];
+        strncpy(buffer, lexer->source + lexer->current, 7);
+        buffer[7] = '\0';
+
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Comparing '%s' with 'include'\n", buffer);
+            fflush(stdout);
+        }
+
+        if (strcmp(buffer, "include") == 0)
+        {
+            if (debug_enabled)
+            {
+                printf("[DEBUG] Found 'include', returning TOKEN_INCLUDE\n");
+                fflush(stdout);
+            }
+            for (int i = 0; i < 7; i++)
+            {
+                advance(lexer);
+            }
+            while (!is_at_end(lexer) && (peek(lexer) == ' ' || peek(lexer) == '\t'))
+            {
+                advance(lexer);
+            }
+            lexer->start = lexer->current;
+            return make_token(lexer, TOKEN_INCLUDE);
+        }
+    }
+
+    if (debug_enabled)
+    {
+        printf("[DEBUG] No 'include' found, returning TOKEN_HASH\n");
+        fflush(stdout);
+    }
+
+    return make_token(lexer, TOKEN_HASH);
 }
 
 static Token make_token(Lexer *lexer, TLTokenType type)
@@ -419,6 +489,8 @@ Token lexer_next_token(Lexer *lexer)
         break;
     case '"':
         return string_literal(lexer);
+    case '#':
+        return handle_preprocessor_directive(lexer);
     }
 
     return error_token(lexer, "Unexpected character");
@@ -544,6 +616,10 @@ const char *token_type_to_string(TLTokenType type)
         return "STRING";
     case TOKEN_STRING_TYPE:
         return "STRING_TYPE";
+    case TOKEN_INCLUDE:
+        return "INCLUDE";
+    case TOKEN_HASH:
+        return "HASH";
     default:
         return "UNKNOWN";
     }

@@ -17,7 +17,7 @@ typedef struct
 
 typedef struct
 {
-    const char *input_filename;
+    DynamicArray input_filenames;
     const char *output_filename;
     bool print_tokens_flag;
     bool print_ast_flag;
@@ -27,6 +27,9 @@ typedef struct
     bool assembly_output;
     bool suppress_warnings;
     bool memory_stats_flag;
+    bool module_mode;
+    char *module_output_dir;
+    DynamicArray module_include_paths;
 } CompilerContext;
 
 void handle_help(int *i, int argc, char *argv[], void *context);
@@ -40,6 +43,8 @@ void handle_ir(int *i, int argc, char *argv[], void *context);
 void handle_dump_ast_json(int *i, int argc, char *argv[], void *context);
 void handle_no_warnings(int *i, int argc, char *argv[], void *context);
 void handle_memory_stats(int *i, int argc, char *argv[], void *context);
+void handle_module_mode(int *i, int argc, char *argv[], void *context);
+void handle_module_include_path(int *i, int argc, char *argv[], void *context);
 void handle_output(int *i, int argc, char *argv[], void *context);
 void handle_asm(int *i, int argc, char *argv[], void *context);
 void handle_input_file(int *i, int argc, char *argv[], void *context);

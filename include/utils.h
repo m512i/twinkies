@@ -7,6 +7,9 @@
 char *read_file(const char *filename);
 
 bool compile_file(const char *input_filename, const char *output_filename, bool verbose, bool assembly_output);
+bool compile_multiple_files(DynamicArray *input_filenames, const char *output_filename, bool verbose, bool assembly_output);
+bool compile_module_system(const char *input_filename, const char *output_filename, bool verbose,
+                           const char *module_output_dir, DynamicArray *include_paths);
 
 void print_tokens(const char *source, const char *filename);
 void print_ast(const char *source, const char *filename);

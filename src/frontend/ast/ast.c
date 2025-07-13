@@ -24,6 +24,7 @@ Program *program_create(void)
 {
     Program *program = safe_malloc(sizeof(Program));
     array_init(&program->functions, 4);
+    array_init(&program->includes, 4);
     return program;
 }
 
@@ -35,6 +36,11 @@ void function_add_param(Function *func, Parameter *param)
 void program_add_function(Program *program, Function *func)
 {
     array_push(&program->functions, func);
+}
+
+void program_add_include(Program *program, Stmt *include_stmt)
+{
+    array_push(&program->includes, include_stmt);
 }
 
 void parameter_destroy(Parameter *param)
@@ -68,6 +74,13 @@ void program_destroy(Program *program)
         function_destroy((Function *)array_get(&program->functions, i));
     }
     array_free(&program->functions);
+
+    for (size_t i = 0; i < program->includes.size; i++)
+    {
+        stmt_destroy((Stmt *)array_get(&program->includes, i));
+    }
+    array_free(&program->includes);
+
     safe_free(program);
 }
 

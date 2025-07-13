@@ -11,7 +11,8 @@ SOURCES = $(wildcard $(SRCDIR)/*.c) \
           $(wildcard $(SRCDIR)/frontend/*/*.c) \
           $(wildcard $(SRCDIR)/analysis/*/*.c) \
           $(wildcard $(SRCDIR)/backend/*/*.c) \
-          $(wildcard $(SRCDIR)/common/*.c)
+          $(wildcard $(SRCDIR)/common/*.c) \
+          $(wildcard $(SRCDIR)/modules/*.c)
 
 OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
 
@@ -55,6 +56,15 @@ example: $(TARGET)
 		echo "No examples directory found"; \
 	fi
 
+modules: $(TARGET)
+	@echo "Compiling module examples..."
+	@if [ -d "examples/modules" ]; then \
+		echo "Compiling main.tl with module system"; \
+		$(TARGET) examples/modules/main.tl -o $(BUILDDIR)/main.c --modules; \
+	else \
+		echo "No modules examples directory found"; \
+	fi
+
 clean:
 	rm -rf $(BUILDDIR)
 
@@ -75,6 +85,7 @@ help:
 	@echo "  all      - Build the compiler (default)"
 	@echo "  test     - Run tests"
 	@echo "  example  - Compile examples"
+	@echo "  modules  - Compile module examples"
 	@echo "  clean    - Remove build files"
 	@echo "  debug    - Build with debug flags"
 	@echo "  release  - Build optimized release version"
@@ -107,6 +118,8 @@ $(BUILDDIR)/backend/assembly/codegenasm.o: $(SRCDIR)/backend/assembly/codegenasm
 $(BUILDDIR)/flags.o: $(SRCDIR)/flags.c $(INCLUDEDIR)/flags.h $(INCLUDEDIR)/common.h
 
 $(BUILDDIR)/utils.o: $(SRCDIR)/utils.c $(INCLUDEDIR)/utils.h $(INCLUDEDIR)/flags.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h $(INCLUDEDIR)/frontend/parser.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/analysis/semantic.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/backend/codegen.h
+
+$(BUILDDIR)/modules/modules.o: $(SRCDIR)/modules/modules.c $(INCLUDEDIR)/modules.h $(INCLUDEDIR)/utils.h $(INCLUDEDIR)/common.h
 
 $(BUILDDIR)/backend/ir/iroperands.o: $(SRCDIR)/backend/ir/iroperands.c $(INCLUDEDIR)/backend/iroperands.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/backend/ir.h
 

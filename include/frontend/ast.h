@@ -4,6 +4,12 @@
 #include "common.h"
 #include "lexer.h"
 
+typedef enum
+{
+    INCLUDE_SYSTEM,
+    INCLUDE_LOCAL
+} IncludeType;
+
 typedef struct Expr Expr;
 typedef struct Stmt Stmt;
 typedef struct Function Function;
@@ -36,7 +42,8 @@ typedef enum
     STMT_CONTINUE,
     STMT_RETURN,
     STMT_PRINT,
-    STMT_BLOCK
+    STMT_BLOCK,
+    STMT_INCLUDE
 } StmtType;
 
 typedef enum
@@ -188,6 +195,12 @@ struct Stmt
         {
             DynamicArray statements;
         } block;
+
+        struct
+        {
+            char *path;
+            IncludeType type;
+        } include;
     } data;
 };
 
@@ -208,6 +221,7 @@ struct Function
 struct Program
 {
     DynamicArray functions;
+    DynamicArray includes;
 };
 
 Function *function_create(const char *name, DataType return_type);
@@ -216,6 +230,7 @@ Program *program_create(void);
 
 void function_add_param(Function *func, Parameter *param);
 void program_add_function(Program *program, Function *func);
+void program_add_include(Program *program, Stmt *include_stmt);
 
 void parameter_destroy(Parameter *param);
 void function_destroy(Function *func);

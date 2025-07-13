@@ -60,6 +60,8 @@ typedef enum
     TOKEN_TRUE,
     TOKEN_FALSE,
     TOKEN_NULL,
+    TOKEN_INCLUDE,
+    TOKEN_HASH,
 } TLTokenType;
 
 typedef struct

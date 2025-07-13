@@ -1,5 +1,6 @@
 #include "backend/codegen.h"
 #include "backend/iroperands.h"
+#include "flags.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,16 +38,37 @@ void codegen_destroy(CodeGenerator *generator)
 
 bool codegen_generate(CodeGenerator *generator)
 {
+    if (debug_enabled)
+    {
+        printf("[DEBUG] codegen_generate: Starting code generation\n");
+        printf("[DEBUG] codegen_generate: IR program has %zu functions\n", generator->ir_program->functions.size);
+    }
+
     codegen_write_header(generator);
     codegen_generate_program(generator);
+
+    if (debug_enabled)
+    {
+        printf("[DEBUG] codegen_generate: Code generation completed\n");
+    }
+
     return true;
 }
 
 void codegen_generate_program(CodeGenerator *generator)
 {
+    if (debug_enabled)
+    {
+        printf("[DEBUG] codegen_generate_program: Starting with %zu functions\n", generator->ir_program->functions.size);
+    }
+
     for (size_t i = 0; i < generator->ir_program->functions.size; i++)
     {
         IRFunction *func = (IRFunction *)array_get(&generator->ir_program->functions, i);
+        if (debug_enabled)
+        {
+            printf("[DEBUG] codegen_generate_program: Processing function %s with %zu instructions\n", func->name, func->instructions.size);
+        }
         codegen_generate_function(generator, func);
     }
 
@@ -63,6 +85,10 @@ void codegen_generate_program(CodeGenerator *generator)
 
     if (!has_main)
     {
+        if (debug_enabled)
+        {
+            printf("[DEBUG] codegen_generate_program: No main function found, adding default main\n");
+        }
         codegen_write_main_function(generator);
     }
 }
@@ -412,7 +438,7 @@ void codegen_write_runtime_functions(CodeGenerator *generator)
     fprintf(generator->output_file, "    if (!a) return -1;\n");
     fprintf(generator->output_file, "    if (!b) return 1;\n");
     fprintf(generator->output_file, "    // Unix-style implementation that returns actual character difference\n");
-    fprintf(generator->output_file, "    while (*a && *a == *b) {\n");
+    fprintf(generator->output_file, "    while (*a != '\\0' && *a == *b) {\n");
     fprintf(generator->output_file, "        a++;\n");
     fprintf(generator->output_file, "        b++;\n");
     fprintf(generator->output_file, "    }\n");
@@ -619,25 +645,60 @@ void codegen_write_function_header(CodeGenerator *generator, IRFunction *func)
         char temp_name[32];
         snprintf(temp_name, sizeof(temp_name), "temp_%d", i);
         DataType temp_type = TYPE_INT;
+
+        if (debug_enabled)
+        {
+            printf("[DEBUG] codegen: Determining type for temp_%d in function %s\n", i, func->name);
+        }
+
+        bool found_as_result = false;
         for (size_t j = 0; j < func->instructions.size; j++)
         {
             IRInstruction *instr = (IRInstruction *)array_get(&func->instructions, j);
+
             if (instr->result && instr->result->type == IR_OP_TEMP &&
                 instr->result->data.temp_id == i)
             {
                 temp_type = instr->result->data_type;
-                break;
-            }
-            if (instr->opcode == IR_ARRAY_LOAD)
-            {
-                if (instr->result && instr->result->type == IR_OP_TEMP && instr->result->data.temp_id == i)
+                found_as_result = true;
+                if (debug_enabled)
                 {
-                    temp_type = instr->result->data_type;
-                    break;
+                    printf("[DEBUG] codegen: temp_%d found as result with type %d in instruction %zu (opcode: %s)\n",
+                           i, temp_type, j, ir_opcode_to_string(instr->opcode));
+                }
+            }
+
+            if (!found_as_result)
+            {
+                if (instr->arg1 && instr->arg1->type == IR_OP_TEMP &&
+                    instr->arg1->data.temp_id == i)
+                {
+                    temp_type = instr->arg1->data_type;
+                    if (debug_enabled)
+                    {
+                        printf("[DEBUG] codegen: temp_%d found as arg1 with type %d in instruction %zu (opcode: %s)\n",
+                               i, temp_type, j, ir_opcode_to_string(instr->opcode));
+                    }
+                }
+
+                if (instr->arg2 && instr->arg2->type == IR_OP_TEMP &&
+                    instr->arg2->data.temp_id == i)
+                {
+                    temp_type = instr->arg2->data_type;
+                    if (debug_enabled)
+                    {
+                        printf("[DEBUG] codegen: temp_%d found as arg2 with type %d in instruction %zu (opcode: %s)\n",
+                               i, temp_type, j, ir_opcode_to_string(instr->opcode));
+                    }
                 }
             }
         }
+
         const char *c_type = get_c_type_string(temp_type);
+        if (debug_enabled)
+        {
+            printf("[DEBUG] codegen: temp_%d final type: %s\n", i, c_type);
+        }
         codegen_write_line(generator, "%s %s;", c_type, temp_name);
     }
 

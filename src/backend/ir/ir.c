@@ -2,6 +2,8 @@
 #include "analysis/semantic.h"
 #include "backend/iroperands.h"
 #include "backend/irinstructions.h"
+#include "common.h"
+#include "modules.h"
 extern bool debug_enabled;
 
 LoopContext *ir_loop_context_create(char *start_label, char *end_label)
@@ -241,15 +243,180 @@ char *ir_function_new_label(IRFunction *func)
     return label;
 }
 
-IRProgram *ir_generate(Program *ast_program, SemanticAnalyzer *analyzer)
+IRProgram *ir_generate_with_modules(Program *ast_program, SemanticAnalyzer *analyzer, void *module_manager)
 {
     IRProgram *ir_program = ir_program_create();
+
+    if (debug_enabled)
+    {
+        printf("[DEBUG] ir_generate_with_modules: Starting IR generation\n");
+        printf("[DEBUG] ir_generate_with_modules: Main program has %zu functions\n", ast_program->functions.size);
+    }
 
     for (size_t i = 0; i < ast_program->functions.size; i++)
     {
         Function *func = (Function *)array_get(&ast_program->functions, i);
+        if (debug_enabled)
+        {
+            printf("[DEBUG] ir_generate_with_modules: Generating IR for main program function: %s\n", func->name);
+        }
         IRFunction *ir_func = ir_generate_function(func, analyzer);
         ir_program_add_function(ir_program, ir_func);
+    }
+
+    if (module_manager)
+    {
+        ModuleManager *manager = (ModuleManager *)module_manager;
+        if (debug_enabled)
+        {
+            printf("[DEBUG] ir_generate_with_modules: Processing %zu modules\n", manager->modules.size);
+        }
+
+        for (size_t i = 0; i < manager->modules.size; i++)
+        {
+            Module *module = (Module *)array_get(&manager->modules, i);
+            if (module->ast)
+            {
+                if (debug_enabled)
+                {
+                    printf("[DEBUG] ir_generate_with_modules: Processing module %s with %zu functions\n",
+                           module->name, module->ast->functions.size);
+                }
+
+                for (size_t j = 0; j < module->ast->functions.size; j++)
+                {
+                    Function *func = (Function *)array_get(&module->ast->functions, j);
+                    if (func->body)
+                    {
+                        if (debug_enabled)
+                        {
+                            printf("[DEBUG] ir_generate_with_modules: Generating IR for module function: %s\n", func->name);
+                        }
+                        IRFunction *ir_func = ir_generate_function(func, analyzer);
+                        ir_program_add_function(ir_program, ir_func);
+                    }
+                }
+            }
+        }
+    }
+
+    if (debug_enabled)
+    {
+        printf("[DEBUG] ir_generate_with_modules: IR generation completed, program has %zu functions\n", ir_program->functions.size);
+    }
+
+    return ir_program;
+}
+
+IRProgram *ir_generate(Program *ast_program, SemanticAnalyzer *analyzer)
+{
+    IRProgram *ir_program = ir_program_create();
+
+    if (debug_enabled)
+    {
+        printf("[DEBUG] ir_generate: Starting IR generation\n");
+        printf("[DEBUG] ir_generate: Main program has %zu functions\n", ast_program->functions.size);
+    }
+
+    for (size_t i = 0; i < ast_program->functions.size; i++)
+    {
+        Function *func = (Function *)array_get(&ast_program->functions, i);
+        if (debug_enabled)
+        {
+            printf("[DEBUG] ir_generate: Generating IR for main program function: %s\n", func->name);
+        }
+        IRFunction *ir_func = ir_generate_function(func, analyzer);
+        ir_program_add_function(ir_program, ir_func);
+    }
+
+    // Generate IR for module functions from the module manager
+    // Note: We need to access the module manager from the analyzer or pass it as a parameter
+    // For now, we'll generate IR for module functions that are in the semantic analyzer
+    // Only check for module functions if we have modules (when there are includes)
+    if (analyzer && analyzer->current_scope && ast_program->includes.size > 0)
+    {
+        if (debug_enabled)
+        {
+            printf("[DEBUG] ir_generate: Checking for module functions in semantic analyzer\n");
+            printf("[DEBUG] ir_generate: Global scope has %zu buckets\n", analyzer->current_scope->symbols->capacity);
+        }
+
+        size_t bucket_count = 0;
+        for (size_t i = 0; i < analyzer->current_scope->symbols->capacity; i++)
+        {
+            bucket_count++;
+            if (debug_enabled && bucket_count % 5 == 0)
+            {
+                printf("[DEBUG] ir_generate: Processed %zu buckets\n", bucket_count);
+            }
+
+            HashTableEntry *entry = analyzer->current_scope->symbols->buckets[i];
+            while (entry)
+            {
+                DynamicArray *overloads = (DynamicArray *)entry->value;
+                if (overloads)
+                {
+                    for (size_t j = 0; j < overloads->size; j++)
+                    {
+                        Symbol *symbol = (Symbol *)array_get(overloads, j);
+                        if (symbol->type == SYMBOL_FUNCTION)
+                        {
+                            if (symbol->data.function.params.size > 0)
+                            {
+                                if (debug_enabled)
+                                {
+                                    printf("[DEBUG] ir_generate: Found module function symbol: %s\n", symbol->name);
+                                }
+
+                                Function *module_func = function_create(symbol->name, symbol->data_type);
+
+                                for (size_t k = 0; k < symbol->data.function.params.size; k++)
+                                {
+                                    Parameter *param = (Parameter *)array_get(&symbol->data.function.params, k);
+                                    Parameter *param_copy = safe_malloc(sizeof(Parameter));
+                                    param_copy->name = string_copy(param->name);
+                                    param_copy->type = param->type;
+                                    array_push(&module_func->params, param_copy);
+                                }
+
+                                // For now, create an empty body (module functions don't have bodies in symbols)
+                                // The actual implementation will be added later
+                                module_func->body = NULL;
+
+                                if (debug_enabled)
+                                {
+                                    printf("[DEBUG] ir_generate: Generating IR for module function: %s\n", symbol->name);
+                                }
+                                IRFunction *ir_func = ir_generate_function(module_func, analyzer);
+                                ir_program_add_function(ir_program, ir_func);
+
+                                function_destroy(module_func);
+                            }
+                        }
+                    }
+                }
+                entry = entry->next;
+            }
+        }
+
+        if (debug_enabled)
+        {
+            printf("[DEBUG] ir_generate: Processed all %zu buckets\n", bucket_count);
+        }
+    }
+    else if (debug_enabled)
+    {
+        printf("[DEBUG] ir_generate: Skipping module function check (no modules)\n");
+    }
+
+    if (debug_enabled)
+    {
+        printf("[DEBUG] ir_generate: Finished checking for module functions\n");
+    }
+
+    if (debug_enabled)
+    {
+        printf("[DEBUG] ir_generate: IR generation completed, program has %zu functions\n", ir_program->functions.size);
     }
 
     return ir_program;
@@ -343,13 +510,19 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
         IROperand *index = ir_generate_expression(ir_func, stmt->data.array_assignment.index, analyzer, TYPE_NULL);
         IROperand *value = ir_generate_expression(ir_func, stmt->data.array_assignment.value, analyzer, TYPE_NULL);
 
-        char *error_label = ir_function_new_label(ir_func);
-        int array_size = array->array_size;
-        if (array_size == -1)
-            array_size = 5;
-        IROperand *size = ir_operand_const(array_size);
-        IRInstruction *bounds_check = ir_instruction_bounds_check(index, size, error_label);
-        ir_function_add_instruction(ir_func, bounds_check);
+        int array_size = -1;
+        if (array && array->type == IR_OP_VAR)
+        {
+            array_size = get_array_size(analyzer, array->data.var_name);
+        }
+
+        if (array_size != -1)
+        {
+            char *error_label = ir_function_new_label(ir_func);
+            IROperand *size = ir_operand_const(array_size);
+            IRInstruction *bounds_check = ir_instruction_bounds_check(index, size, error_label);
+            ir_function_add_instruction(ir_func, bounds_check);
+        }
 
         IRInstruction *store = ir_instruction_array_store(array, index, value);
         ir_function_add_instruction(ir_func, store);
@@ -497,6 +670,10 @@ void ir_generate_statement(IRFunction *ir_func, Stmt *stmt, SemanticAnalyzer *an
                 break;
         }
         break;
+    case STMT_INCLUDE:
+        // Include directives are handled during parsing, not IR generation
+        // They don't generate any IR instructions
+        break;
     }
 }
 
@@ -523,6 +700,21 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
 
     case EXPR_VARIABLE:
     {
+        Symbol *symbol = scope_resolve(analyzer, expr->data.variable.name);
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Variable %s: symbol found = %s, data_type = %d\n",
+                   expr->data.variable.name, symbol ? "yes" : "no",
+                   symbol ? (int)symbol->data_type : -1);
+        }
+
+        if (symbol && symbol->data_type == TYPE_STRING)
+        {
+            IROperand *operand = ir_operand_var(expr->data.variable.name);
+            operand->data_type = TYPE_STRING;
+            return operand;
+        }
+
         int array_size = get_array_size(analyzer, expr->data.variable.name);
         if (debug_enabled)
         {
@@ -536,7 +728,6 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
         else
         {
             IROperand *operand = ir_operand_var(expr->data.variable.name);
-            Symbol *symbol = scope_resolve(analyzer, expr->data.variable.name);
             if (symbol)
             {
                 operand->data_type = symbol->data_type;
@@ -564,6 +755,10 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
         {
             IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
             result->data_type = TYPE_STRING;
+            if (debug_enabled)
+            {
+                printf("[DEBUG] ir_generate: String concatenation, setting temp_%d to TYPE_STRING\n", result->data.temp_id);
+            }
             IRInstruction *param1 = ir_instruction_param(left);
             IRInstruction *param2 = ir_instruction_param(right);
             ir_function_add_instruction(ir_func, param1);
@@ -673,16 +868,37 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
     {
         IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
 
-        if (string_equal(expr->data.call.name, "concat") ||
+        if (debug_enabled)
+        {
+            printf("[DEBUG] ir_generate: Processing function call: %s\n", expr->data.call.name);
+        }
+
+        if (string_equal(expr->data.call.name, "string_concat") ||
+            string_equal(expr->data.call.name, "string_substr") ||
+            string_equal(expr->data.call.name, "char_at") ||
+            string_equal(expr->data.call.name, "__tl_substr") ||
+            string_equal(expr->data.call.name, "__tl_concat") ||
             string_equal(expr->data.call.name, "substr") ||
-            string_equal(expr->data.call.name, "char_at"))
+            string_equal(expr->data.call.name, "concat"))
         {
             result->data_type = TYPE_STRING;
+            if (debug_enabled)
+            {
+                printf("[DEBUG] ir_generate: String function call %s, setting temp_%d to TYPE_STRING\n", expr->data.call.name, result->data.temp_id);
+            }
         }
-        else if (string_equal(expr->data.call.name, "strlen") ||
+        else if (string_equal(expr->data.call.name, "string_length") ||
+                 string_equal(expr->data.call.name, "string_compare") ||
+                 string_equal(expr->data.call.name, "__tl_strlen") ||
+                 string_equal(expr->data.call.name, "__tl_strcmp") ||
+                 string_equal(expr->data.call.name, "strlen") ||
                  string_equal(expr->data.call.name, "strcmp"))
         {
             result->data_type = TYPE_INT;
+            if (debug_enabled)
+            {
+                printf("[DEBUG] ir_generate: String length/compare function call %s, setting temp_%d to TYPE_INT\n", expr->data.call.name, result->data.temp_id);
+            }
         }
         else if (string_equal(expr->data.call.name, "test_function"))
         {
@@ -691,6 +907,10 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
         else
         {
             result->data_type = TYPE_INT;
+            if (debug_enabled)
+            {
+                printf("[DEBUG] ir_generate: Default function call %s, setting temp_%d to TYPE_INT\n", expr->data.call.name, result->data.temp_id);
+            }
         }
 
         for (size_t i = 0; i < expr->data.call.args.size; i++)
@@ -717,30 +937,51 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
         if (array && array->data_type == TYPE_STRING)
         {
             IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
-            result->data_type = TYPE_STRING;
-            IRInstruction *param1 = ir_instruction_param(array);
-            IRInstruction *param2 = ir_instruction_param(index);
-            ir_function_add_instruction(ir_func, param1);
-            ir_function_add_instruction(ir_func, param2);
 
-            IRInstruction *call = ir_instruction_call(result, "__tl_char_at");
-            ir_function_add_instruction(ir_func, call);
+            if (expected_type == TYPE_STRING)
+            {
+                result->data_type = TYPE_STRING;
+                if (debug_enabled)
+                {
+                    printf("[DEBUG] ir_generate: String indexing for assignment, setting temp_%d to TYPE_STRING\n", result->data.temp_id);
+                }
+
+                IRInstruction *param1 = ir_instruction_param(array);
+                IRInstruction *param2 = ir_instruction_param(index);
+                ir_function_add_instruction(ir_func, param1);
+                ir_function_add_instruction(ir_func, param2);
+                IRInstruction *call = ir_instruction_call(result, "__tl_char_at");
+                ir_function_add_instruction(ir_func, call);
+            }
+            else
+            {
+                result->data_type = TYPE_INT;
+                if (debug_enabled)
+                {
+                    printf("[DEBUG] ir_generate: String indexing for comparison, setting temp_%d to TYPE_INT\n", result->data.temp_id);
+                }
+
+                IRInstruction *load = ir_instruction_array_load(result, array, index);
+                ir_function_add_instruction(ir_func, load);
+            }
 
             return result;
         }
         else
         {
-            char *error_label = ir_function_new_label(ir_func);
-            int array_size = array->array_size;
-            if (debug_enabled)
+            int array_size = -1;
+            if (array && array->type == IR_OP_VAR)
             {
-                printf("[DEBUG] Array index: array_size = %d\n", array_size);
+                array_size = get_array_size(analyzer, array->data.var_name);
             }
-            if (array_size == -1)
-                array_size = 5;
-            IROperand *size = ir_operand_const(array_size);
-            IRInstruction *bounds_check = ir_instruction_bounds_check(index, size, error_label);
-            ir_function_add_instruction(ir_func, bounds_check);
+
+            if (array_size != -1)
+            {
+                char *error_label = ir_function_new_label(ir_func);
+                IROperand *size = ir_operand_const(array_size);
+                IRInstruction *bounds_check = ir_instruction_bounds_check(index, size, error_label);
+                ir_function_add_instruction(ir_func, bounds_check);
+            }
 
             IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
 
@@ -776,13 +1017,8 @@ IROperand *ir_generate_expression(IRFunction *ir_func, Expr *expr, SemanticAnaly
         IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
         result->data_type = TYPE_STRING;
 
-        IRInstruction *param1 = ir_instruction_param(string);
-        IRInstruction *param2 = ir_instruction_param(index);
-        ir_function_add_instruction(ir_func, param1);
-        ir_function_add_instruction(ir_func, param2);
-
-        IRInstruction *call = ir_instruction_call(result, "__tl_char_at");
-        ir_function_add_instruction(ir_func, call);
+        IRInstruction *load = ir_instruction_array_load(result, string, index);
+        ir_function_add_instruction(ir_func, load);
 
         return result;
     }

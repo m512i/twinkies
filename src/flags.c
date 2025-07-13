@@ -122,6 +122,37 @@ void handle_memory_stats(int *i, int argc, char *argv[], void *context)
     ctx->memory_stats_flag = true;
 }
 
+void handle_module_mode(int *i, int argc, char *argv[], void *context)
+{
+    CompilerContext *ctx = (CompilerContext *)context;
+    ctx->module_mode = true;
+
+    if (*i + 1 < argc && argv[*i + 1][0] != '-')
+    {
+        ctx->module_output_dir = argv[++(*i)];
+    }
+    else
+    {
+        ctx->module_output_dir = "./build/modules";
+    }
+}
+
+void handle_module_include_path(int *i, int argc, char *argv[], void *context)
+{
+    CompilerContext *ctx = (CompilerContext *)context;
+    if (*i + 1 < argc)
+    {
+        char *path = malloc(strlen(argv[*i + 1]) + 1);
+        strcpy(path, argv[++(*i)]);
+        array_push(&ctx->module_include_paths, path);
+    }
+    else
+    {
+        print_error(argv[0], "missing include path after -I");
+        exit(1);
+    }
+}
+
 void handle_output(int *i, int argc, char *argv[], void *context)
 {
     CompilerContext *ctx = (CompilerContext *)context;
@@ -149,17 +180,8 @@ void handle_input_file(int *i, int argc, char *argv[], void *context)
 {
     (void)argc;
     CompilerContext *ctx = (CompilerContext *)context;
-    if (!ctx->input_filename)
-    {
-        ctx->input_filename = argv[*i];
-    }
-    else
-    {
-        print_error(argv[0], "unknown argument");
-        fprintf(stderr, "  %s\n", argv[*i]);
-        print_usage(argv[0]);
-        exit(1);
-    }
+    char *filename = string_copy(argv[*i]);
+    array_push(&ctx->input_filenames, filename);
 }
 
 void handle_debug(int *i, int argc, char *argv[], void *context)
@@ -186,6 +208,8 @@ static const Command commands[] = {
     {"--asm", handle_asm, "Generate assembly code instead of C"},
     {"--debug", handle_debug, "Enable debug output"},
     {"--memory", handle_memory_stats, "Show memory usage statistics"},
+    {"--modules", handle_module_mode, "Enable module compilation mode"},
+    {"-I", handle_module_include_path, "Add include path for modules"},
     {NULL, handle_input_file, "Input file"}};
 
 void process_argument(int *i, int argc, char *argv[], CompilerContext *context)
@@ -358,8 +382,8 @@ bool has_asm_extension(const char *filename)
 
 void print_usage(const char *program_name)
 {
-    printf("Usage: %s <input_file> -o <output_file>\n", program_name);
-    printf("       %s <input_file> -o <output_file> --asm\n", program_name);
+    printf("Usage: %s <input_file> [input_file2] ... -o <output_file>\n", program_name);
+    printf("       %s <input_file> [input_file2] ... -o <output_file> --asm\n", program_name);
     printf("       %s <input_file> --tokens\n", program_name);
     printf("       %s <input_file> --ast\n", program_name);
     printf("       %s <input_file> --ir\n", program_name);
@@ -376,5 +400,6 @@ void print_usage(const char *program_name)
     }
     printf("\n");
     printf("Note: Only files with .tl extension can be compiled.\n");
+    printf("      Multiple input files are supported for multi-file compilation.\n");
     fflush(stdout);
 }

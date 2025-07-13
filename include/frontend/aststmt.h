@@ -15,11 +15,13 @@ Stmt *stmt_break(int line, int column);
 Stmt *stmt_continue(int line, int column);
 Stmt *stmt_return(Expr *value, int line, int column);
 Stmt *stmt_print_stmt(int line, int column);
+Stmt *stmt_include(const char *path, IncludeType type, int line, int column);
 Stmt *stmt_block(int line, int column);
 
 void stmt_add_block_stmt(Stmt *block, Stmt *stmt);
 void stmt_add_print_arg(Stmt *print_stmt, Expr *arg);
 void stmt_destroy(Stmt *stmt);
+Stmt *stmt_copy(Stmt *stmt);
 void stmt_print(const Stmt *stmt, int indent);
 
 #endif

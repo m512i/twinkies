@@ -19,6 +19,7 @@ Expr *expr_string_index(Expr *string, Expr *index, int line, int column);
 
 void expr_add_call_arg(Expr *call, Expr *arg);
 void expr_destroy(Expr *expr);
+Expr *expr_copy(Expr *expr);
 void expr_print(const Expr *expr, int indent);
 
 #endif
