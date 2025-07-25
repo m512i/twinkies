@@ -10,4 +10,4 @@ both codegens are unoptimized will fix that soonTM
 
 CODEGENASM.C IS REALLY FUNKY I RECOMMEND USING CODEGEN.C THAT CONVERTS .TL TO .C CODE WORKS FINE (will be fixing codegenasm soon)
 
-<img src="Z.png" alt="My Image" width="300">
+<img src="Screenshot_2025-07-24_at_10.58.12_PM.png" alt="My Image" width="300">
