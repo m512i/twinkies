@@ -1,0 +1,3 @@
+.\compiler.exe main.tl -o main.c math.tl string.tl --modules --v --debug >> output.txt
+
+(flags are optional and you do not have to >> output.txt just testing works though)

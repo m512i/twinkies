@@ -1,0 +1,75 @@
+{
+    "scopeName": "source.twink",
+    "name": "Twink Language",
+    "patterns": [
+      { "include": "#comments" },
+      { "include": "#keywords" },
+      { "include": "#types" },
+      { "include": "#numbers" },
+      { "include": "#strings" },
+      { "include": "#function-def" },
+      { "include": "#function-call" },
+      { "include": "#array-access" },
+      { "include": "#identifiers" }
+    ],
+    "repository": {
+      "comments": {
+        "patterns": [
+          { "name": "comment.line.double-slash.twink", "match": "//.*$" },
+          { "name": "comment.block.twink", "begin": "/\\*", "end": "\\*/" }
+        ]
+      },
+      "keywords": {
+        "patterns": [
+          { "name": "keyword.control.twink", "match": "\\b(func|let|return|if|else|while|for|break|continue|print)\\b" }
+        ]
+      },
+      "types": {
+        "patterns": [
+          { "name": "storage.type.twink", "match": "\\b(int|float|double|bool|void|char|string)\\b" }
+        ]
+      },
+      "numbers": {
+        "patterns": [
+          { "name": "constant.numeric.twink", "match": "\\b[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?\\b" }
+        ]
+      },
+      "strings": {
+        "patterns": [
+          { "name": "string.quoted.double.twink", "begin": "\"", "end": "\"", "patterns": [ { "name": "constant.character.escape.twink", "match": "\\\\." } ] },
+          { "name": "string.quoted.single.twink", "begin": "'", "end": "'", "patterns": [ { "name": "constant.character.escape.twink", "match": "\\\\." } ] }
+        ]
+      },
+      "function-def": {
+        "patterns": [
+          {
+            "name": "entity.name.function.definition.twink",
+            "match": "\\bfunc\\s+([a-zA-Z_][a-zA-Z0-9_]*)"
+          }
+        ]
+      },
+      "function-call": {
+        "patterns": [
+          {
+            "name": "entity.name.function.call.twink",
+            "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()"
+          }
+        ]
+      },
+      "array-access": {
+        "patterns": [
+          {
+            "name": "variable.other.array.twink",
+            "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\["
+          }
+        ]
+      },
+      "identifiers": {
+        "patterns": [
+          { "name": "variable.other.twink", "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b" }
+        ]
+      }
+    },
+    "fileTypes": ["tl"],
+    "uuid": "00000000-0000-0000-0000-000000000000"
+  }

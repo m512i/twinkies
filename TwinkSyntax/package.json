@@ -1,0 +1,28 @@
+{
+  "name": "twink-syntax",
+  "displayName": "Twink Language Syntax Highlighting",
+  "description": "Syntax highlighting for the Twink Language (.tl files)",
+  "version": "0.0.2",
+  "publisher": "avalehi",
+  "engines": {
+    "vscode": ">=1.50.0"
+  },
+  "categories": ["Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "twink",
+        "aliases": ["Twink Language", "twink"],
+        "extensions": [".tl"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "twink",
+        "scopeName": "source.twink",
+        "path": "./syntaxes/twink.tmLanguage.json"
+      }
+    ]
+  }
+} 
