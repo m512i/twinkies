@@ -1,0 +1,7 @@
+// Math module header file
+// Functions from examples/demo.tl
+
+func factorial(n: int) -> int;
+func gcd(a: int, b: int) -> int;
+func fibonacci(n: int) -> int;
+func is_prime(n: int) -> int; 

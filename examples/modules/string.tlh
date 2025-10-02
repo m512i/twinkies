@@ -1,0 +1,5 @@
+// String module header
+func string_length(str: string) -> int;
+func string_compare(str1: string, str2: string) -> int;
+func string_substr(str: string, start: int, length: int) -> string;
+func string_concat(str1: string, str2: string) -> string; 
