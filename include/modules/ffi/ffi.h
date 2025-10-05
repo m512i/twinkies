@@ -1,11 +1,11 @@
 #ifndef FFI_H
 #define FFI_H
 
-#include "common.h"
-#include "frontend/ast.h"
-#include "analysis/semantic.h"
+#include "common/common.h"
+#include "frontend/ast/ast.h"
+#include "analysis/semantic/semantic.h"
 #include "backend/codegen.h"
-#include "backend/ir.h"
+#include "backend/ir/ir.h"
 #include "modules/ffi/fficonfig.h"
 
 typedef enum

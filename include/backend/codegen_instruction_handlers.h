@@ -1,8 +1,8 @@
 #ifndef CODEGEN_INSTRUCTION_HANDLERS_H
 #define CODEGEN_INSTRUCTION_HANDLERS_H
 
-#include "common.h"
-#include "ir.h"
+#include "common/common.h"
+#include "backend/ir/ir.h"
 #include "backend/codegen_core.h"
 #include <stdio.h>
 void codegen_handle_nop(CodeGenerator *generator, IRInstruction *instr);

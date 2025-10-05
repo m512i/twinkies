@@ -1,9 +1,9 @@
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
-#include "common.h"
-#include "ir.h"
-#include "frontend/ast.h"
+#include "common/common.h"
+#include "backend/ir/ir.h"
+#include "frontend/ast/ast.h"
 
 #define MAX_PARAMS 16
 
@@ -19,24 +19,6 @@ typedef struct
     DataType type;
 } VariableInfo;
 
-typedef struct
-{
-    IRProgram *ir_program;
-    Program *program;
-    FILE *output_file;
-    Error *error;
-    int indent_level;
-    int temp_counter;
-    HashTable *temp_map;
-    HashTable *var_set;
-    HashTable *array_info;
-    HashTable *variable_types;
-    IROperand *params[MAX_PARAMS];
-    int param_count;
-    const char *current_function_name;
-    char epilogue_label[64];
-    HashTable *declared_temps;
-} CodeGenerator;
 
 CodeGenerator *codegen_create(IRProgram *ir_program, Program *program, FILE *output_file, Error *error);
 void codegen_destroy(CodeGenerator *generator);

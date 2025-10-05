@@ -1,4 +1,4 @@
-#include "backend/iroperands.h"
+#include "backend/ir/iroperands.h"
 
 static void escape_string_for_c(const char *input, FILE *output) {
     while (*input) {

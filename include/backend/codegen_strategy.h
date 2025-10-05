@@ -1,9 +1,9 @@
 #ifndef CODEGEN_STRATEGY_H
 #define CODEGEN_STRATEGY_H
 
-#include "common.h"
-#include "ir.h"
-#include "frontend/ast.h"
+#include "common/common.h"
+#include "backend/ir/ir.h"
+#include "frontend/ast/ast.h"
 #include "backend/codegen_core.h"
 #include <stdio.h>
 

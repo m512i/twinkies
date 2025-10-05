@@ -1,7 +1,7 @@
 #include "backend/codegen_instruction_handlers.h"
 #include "backend/codegen_c_writer.h"
 #include "backend/codegen_ffi.h"
-#include "flags.h"
+#include "common/flags.h"
 #include <stdio.h>
 #include <string.h>
 

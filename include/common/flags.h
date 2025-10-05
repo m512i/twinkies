@@ -1,7 +1,7 @@
 #ifndef FLAGS_H
 #define FLAGS_H
 
-#include "common.h"
+#include "common/common.h"
 
 extern bool debug_enabled;
 extern bool suppress_warnings;

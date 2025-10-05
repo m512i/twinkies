@@ -1,8 +1,8 @@
 #ifndef ASTSTMT_H
 #define ASTSTMT_H
 
-#include "common.h"
-#include "ast.h"
+#include "common/common.h"
+#include "frontend/ast/ast.h"
 
 Stmt *stmt_expr(Expr *expression, int line, int column);
 Stmt *stmt_var_decl(const char *name, DataType type, Expr *initializer, int line, int column);

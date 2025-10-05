@@ -1,4 +1,4 @@
-#include "analysis/semantic.h"
+#include "analysis/semantic/semantic.h"
 #include <stdarg.h>
 extern bool debug_enabled;
 

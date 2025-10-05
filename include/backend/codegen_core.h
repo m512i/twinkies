@@ -1,9 +1,9 @@
 #ifndef CODEGEN_CORE_H
 #define CODEGEN_CORE_H
 
-#include "common.h"
-#include "ir.h"
-#include "frontend/ast.h"
+#include "common/common.h"
+#include "backend/ir/ir.h"
+#include "frontend/ast/ast.h"
 #include <stdio.h>
 
 #define MAX_PARAMS 16
@@ -25,6 +25,9 @@ struct CodeGenerator {
     int param_count;
     IROperand *params[MAX_PARAMS];
     CodeGenStrategy *strategy;
+    const char *current_function_name;
+    char epilogue_label[64];
+    HashTable *declared_temps;
 };
 
 CodeGenerator *codegen_core_create(IRProgram *ir_program, Program *program, FILE *output_file, Error *error);

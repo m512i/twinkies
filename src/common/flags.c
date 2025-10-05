@@ -1,4 +1,4 @@
-#include "flags.h"
+#include "common/flags.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

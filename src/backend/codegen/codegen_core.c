@@ -3,7 +3,7 @@
 #include "backend/codegen_instruction_handlers.h"
 #include "backend/codegen_ffi.h"
 #include "backend/codegen_c_writer.h"
-#include "flags.h"
+#include "common/flags.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,6 +26,9 @@ CodeGenerator *codegen_core_create(IRProgram *ir_program, Program *program, FILE
     generator->variable_types = hashtable_create(16);
     generator->param_count = 0;
     generator->strategy = c_codegen_strategy_create();
+    generator->current_function_name = NULL;
+    generator->epilogue_label[0] = '\0';
+    generator->declared_temps = hashtable_create(16);
     return generator;
 }
 
@@ -42,6 +45,7 @@ void codegen_core_destroy(CodeGenerator *generator)
     hashtable_destroy(generator->var_set);
     hashtable_destroy(generator->array_info);
     hashtable_destroy(generator->variable_types);
+    hashtable_destroy(generator->declared_temps);
     safe_free(generator);
 }
 

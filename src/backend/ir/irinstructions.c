@@ -1,5 +1,5 @@
-#include "backend/irinstructions.h"
-#include "backend/iroperands.h"
+#include "backend/ir/irinstructions.h"
+#include "backend/ir/iroperands.h"
 
 IRInstruction *ir_instruction_nop(void)
 {

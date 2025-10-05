@@ -1,5 +1,5 @@
-#include "frontend/lexer.h"
-#include "flags.h"
+#include "frontend/lexer/lexer.h"
+#include "common/flags.h"
 #include <ctype.h>
 
 typedef struct

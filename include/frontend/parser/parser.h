@@ -1,9 +1,9 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "common.h"
-#include "lexer.h"
-#include "ast.h"
+#include "common/common.h"
+#include "frontend/lexer/lexer.h"
+#include "frontend/ast/ast.h"
 
 typedef struct
 {

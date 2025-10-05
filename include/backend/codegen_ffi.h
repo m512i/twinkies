@@ -1,8 +1,8 @@
 #ifndef CODEGEN_FFI_H
 #define CODEGEN_FFI_H
 
-#include "common.h"
-#include "frontend/ast.h"
+#include "common/common.h"
+#include "frontend/ast/ast.h"
 #include "backend/codegen_core.h"
 #include <stdio.h>
 

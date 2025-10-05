@@ -1,8 +1,8 @@
 #ifndef SEMANTIC_H
 #define SEMANTIC_H
 
-#include "common.h"
-#include "frontend/ast.h"
+#include "common/common.h"
+#include "frontend/ast/ast.h"
 
 typedef enum
 {

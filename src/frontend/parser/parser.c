@@ -1,6 +1,6 @@
-#include "frontend/parser.h"
-#include "frontend/astexpr.h"
-#include "frontend/aststmt.h"
+#include "frontend/parser/parser.h"
+#include "frontend/ast/astexpr.h"
+#include "frontend/ast/aststmt.h"
 extern bool debug_enabled;
 
 Expr *finish_call(Parser *parser, Expr *callee);

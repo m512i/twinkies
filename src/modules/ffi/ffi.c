@@ -1,6 +1,6 @@
 #include "modules/ffi/ffi.h"
 #include "backend/codegen.h"
-#include "backend/ir.h"
+#include "backend/ir/ir.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

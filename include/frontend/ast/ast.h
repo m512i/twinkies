@@ -1,8 +1,8 @@
 #ifndef AST_H
 #define AST_H
 
-#include "common.h"
-#include "lexer.h"
+#include "common/common.h"
+#include "frontend/lexer/lexer.h"
 #include "modules/ffi/fficonfig.h"
 
 typedef enum

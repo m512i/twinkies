@@ -94,36 +94,36 @@ help:
 	@echo "  uninstall- Remove installed compiler"
 	@echo "  help     - Show this help message"
 
-$(BUILDDIR)/main.o: $(SRCDIR)/main.c $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h $(INCLUDEDIR)/frontend/parser.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/analysis/semantic.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/backend/codegen.h
+$(BUILDDIR)/main.o: $(SRCDIR)/main.c $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h $(INCLUDEDIR)/frontend/parser/parser.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/analysis/semantic/semantic.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/backend/codegen.h
 
-$(BUILDDIR)/common.o: $(SRCDIR)/common/common.c $(INCLUDEDIR)/common.h
+$(BUILDDIR)/common/common.o: $(SRCDIR)/common/common.c $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/frontend/lexer/lexer.o: $(SRCDIR)/frontend/lexer/lexer.c $(INCLUDEDIR)/frontend/lexer.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/frontend/lexer/lexer.o: $(SRCDIR)/frontend/lexer/lexer.c $(INCLUDEDIR)/frontend/lexer/lexer.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/frontend/parser/parser.o: $(SRCDIR)/frontend/parser/parser.c $(INCLUDEDIR)/frontend/parser.h $(INCLUDEDIR)/frontend/lexer.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/frontend/parser/parser.o: $(SRCDIR)/frontend/parser/parser.c $(INCLUDEDIR)/frontend/parser/parser.h $(INCLUDEDIR)/frontend/lexer/lexer.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/frontend/ast/ast.o: $(SRCDIR)/frontend/ast/ast.c $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/frontend/astexpr.h $(INCLUDEDIR)/frontend/aststmt.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h
+$(BUILDDIR)/frontend/ast/ast.o: $(SRCDIR)/frontend/ast/ast.c $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/frontend/ast/astexpr.h $(INCLUDEDIR)/frontend/ast/aststmt.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h
 
-$(BUILDDIR)/frontend/ast/astexpr.o: $(SRCDIR)/frontend/ast/astexpr.c $(INCLUDEDIR)/frontend/astexpr.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h
+$(BUILDDIR)/frontend/ast/astexpr.o: $(SRCDIR)/frontend/ast/astexpr.c $(INCLUDEDIR)/frontend/ast/astexpr.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h
 
-$(BUILDDIR)/frontend/ast/aststmt.o: $(SRCDIR)/frontend/ast/aststmt.c $(INCLUDEDIR)/frontend/aststmt.h $(INCLUDEDIR)/frontend/astexpr.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h
+$(BUILDDIR)/frontend/ast/aststmt.o: $(SRCDIR)/frontend/ast/aststmt.c $(INCLUDEDIR)/frontend/ast/aststmt.h $(INCLUDEDIR)/frontend/ast/astexpr.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h
 
-$(BUILDDIR)/analysis/semantic/semantic.o: $(SRCDIR)/analysis/semantic/semantic.c $(INCLUDEDIR)/analysis/semantic.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/analysis/semantic/semantic.o: $(SRCDIR)/analysis/semantic/semantic.c $(INCLUDEDIR)/analysis/semantic/semantic.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/ir/ir.o: $(SRCDIR)/backend/ir/ir.c $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/backend/ir/ir.o: $(SRCDIR)/backend/ir/ir.c $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/codegen/codegen.o: $(SRCDIR)/backend/codegen/codegen.c $(INCLUDEDIR)/backend/codegen.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/backend/codegen/codegen.o: $(SRCDIR)/backend/codegen/codegen.c $(INCLUDEDIR)/backend/codegen.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/assembly/codegenasm.o: $(SRCDIR)/backend/assembly/codegenasm.c $(INCLUDEDIR)/backend/codegen.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/backend/assembly/codegenasm.o: $(SRCDIR)/backend/assembly/codegenasm.c $(INCLUDEDIR)/backend/codegen.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/flags.o: $(SRCDIR)/flags.c $(INCLUDEDIR)/flags.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/common/flags.o: $(SRCDIR)/common/flags.c $(INCLUDEDIR)/common/flags.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/utils.o: $(SRCDIR)/utils.c $(INCLUDEDIR)/utils.h $(INCLUDEDIR)/flags.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/frontend/lexer.h $(INCLUDEDIR)/frontend/parser.h $(INCLUDEDIR)/frontend/ast.h $(INCLUDEDIR)/analysis/semantic.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/backend/codegen.h
+$(BUILDDIR)/common/utils.o: $(SRCDIR)/common/utils.c $(INCLUDEDIR)/common/utils.h $(INCLUDEDIR)/common/flags.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h $(INCLUDEDIR)/frontend/parser/parser.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/analysis/semantic/semantic.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/backend/codegen.h
 
-$(BUILDDIR)/modules/modules.o: $(SRCDIR)/modules/modules.c $(INCLUDEDIR)/modules.h $(INCLUDEDIR)/utils.h $(INCLUDEDIR)/common.h
+$(BUILDDIR)/modules/modules.o: $(SRCDIR)/modules/modules.c $(INCLUDEDIR)/modules/modules.h $(INCLUDEDIR)/common/utils.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/ir/iroperands.o: $(SRCDIR)/backend/ir/iroperands.c $(INCLUDEDIR)/backend/iroperands.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/backend/ir.h
+$(BUILDDIR)/backend/ir/iroperands.o: $(SRCDIR)/backend/ir/iroperands.c $(INCLUDEDIR)/backend/ir/iroperands.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/backend/ir/ir.h
 
-$(BUILDDIR)/backend/ir/irinstructions.o: $(SRCDIR)/backend/ir/irinstructions.c $(INCLUDEDIR)/backend/irinstructions.h $(INCLUDEDIR)/common.h $(INCLUDEDIR)/backend/ir.h $(INCLUDEDIR)/backend/iroperands.h
+$(BUILDDIR)/backend/ir/irinstructions.o: $(SRCDIR)/backend/ir/irinstructions.c $(INCLUDEDIR)/backend/ir/irinstructions.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/backend/ir/iroperands.h
 
 .PHONY: all test example clean install uninstall debug release help 

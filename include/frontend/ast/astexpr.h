@@ -1,8 +1,8 @@
 #ifndef ASTEXPR_H
 #define ASTEXPR_H
 
-#include "common.h"
-#include "ast.h"
+#include "common/common.h"
+#include "frontend/ast/ast.h"
 
 Expr *expr_literal_number(int64_t value, int line, int column);
 Expr *expr_literal_bool(bool value, int line, int column);

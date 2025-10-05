@@ -1,9 +1,9 @@
 #ifndef MODULES_H
 #define MODULES_H
 
-#include "common.h"
-#include "frontend/ast.h"
-#include "analysis/semantic.h"
+#include "common/common.h"
+#include "frontend/ast/ast.h"
+#include "analysis/semantic/semantic.h"
 
 #define MAX_INCLUDE_PATHS 32
 #define MAX_MODULE_DEPENDENCIES 64

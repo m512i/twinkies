@@ -1,4 +1,4 @@
-#include "common.h"
+#include "common/common.h"
 #include <stdarg.h>
 
 extern bool suppress_warnings;

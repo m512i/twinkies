@@ -1,5 +1,5 @@
 #include "modules/ffi/fficonfig.h"
-#include "frontend/ast.h"
+#include "frontend/ast/ast.h"
 #include <string.h>
 
 FFIFunction* ffi_function_create(const char *name, const char *library, const char *calling_convention, int return_type) {

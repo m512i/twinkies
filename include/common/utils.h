@@ -1,8 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "common.h"
-#include "frontend/ast.h"
+#include "common/common.h"
+#include "frontend/ast/ast.h"
 
 char *read_file(const char *filename);
 

@@ -2,7 +2,7 @@
 #define FFI_CONFIG_H
 
 #include <stddef.h>
-#include "common.h"
+#include "common/common.h"
 
 typedef struct Parameter Parameter;
 

@@ -1,12 +1,12 @@
-#include "common.h"
-#include "backend/ir.h"
-#include "frontend/ast.h"
+#include "common/common.h"
+#include "backend/ir/ir.h"
+#include "frontend/ast/ast.h"
 #include "backend/codegen_core.h"
 #include "backend/codegen_strategy.h"
 #include "backend/codegen_instruction_handlers.h"
 #include "backend/codegen_ffi.h"
 #include "backend/codegen_c_writer.h"
-#include "flags.h"
+#include "common/flags.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
