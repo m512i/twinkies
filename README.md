@@ -39,7 +39,6 @@ func main() -> int {
     
     return 0;
 }
-}
 ```
 
 ### Type System
