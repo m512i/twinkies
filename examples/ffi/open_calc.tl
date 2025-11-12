@@ -10,36 +10,36 @@ extern "cdecl" from "kernel32.dll" {
 
 func main() -> int {
     print("=== FFI Calculator Launcher ===");
-    
+
     // Get current time before launching
     let start_time: int = GetTickCount();
     print("Start time (ticks):", start_time);
-    
+
     print("Launching Windows Calculator...");
-    
+
     // Launch calculator using ShellExecuteA
-    // Parameters: hwnd=0 (no parent), operation="open", file="calc.exe", 
+    // Parameters: hwnd=0 (no parent), operation="open", file="calc.exe",
     // parameters="", directory="", show command=1 (normal window)
     let result: int = ShellExecuteA(0, "open", "calc.exe", "", "", 1);
-    
+
     print("ShellExecuteA result:", result);
-    
+
     // Check if successful (result > 32 means success)
     if (result > 32) {
-        print("✅ Calculator launched successfully!");
-        
+        print("Calculator launched successfully!");
+
         // Wait a moment to let calculator start
         print("Waiting 2 seconds...");
         let sleep_result: int = Sleep(2000);
         print("Sleep completed, result:", sleep_result);
-        
+
         // Get time after launch
         let end_time: int = GetTickCount();
         print("End time (ticks):", end_time);
-        
+
         let elapsed: int = end_time - start_time;
         print("Time elapsed (ticks):", elapsed);
-        
+
     } else {
         print("❌ Failed to launch calculator!");
         print("Error codes:");
@@ -56,7 +56,7 @@ func main() -> int {
         print("  31 = No association");
         print("  32 = DLL not found");
     }
-    
+
     print("=== Calculator Launcher Complete ===");
     return 0;
 }
