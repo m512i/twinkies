@@ -289,5 +289,51 @@ void ir_generate_statement_impl(IRFunction *ir_func, Stmt *stmt, SemanticAnalyze
         // Include directives are handled during parsing, not IR generation
         // They don't generate any IR instructions
         break;
+    case STMT_INLINE_ASM:
+    {
+        DynamicArray *outputs = safe_malloc(sizeof(DynamicArray));
+        DynamicArray *inputs = safe_malloc(sizeof(DynamicArray));
+        DynamicArray *clobbers = safe_malloc(sizeof(DynamicArray));
+        array_init(outputs, sizeof(InlineAsmOperand*));
+        array_init(inputs, sizeof(InlineAsmOperand*));
+        array_init(clobbers, sizeof(char*));
+        
+        for (size_t i = 0; i < stmt->data.inline_asm.outputs.size; i++)
+        {
+            InlineAsmOperand *src = (InlineAsmOperand *)array_get(&stmt->data.inline_asm.outputs, i);
+            InlineAsmOperand *dst = safe_malloc(sizeof(InlineAsmOperand));
+            dst->constraint = string_copy(src->constraint);
+            dst->variable = string_copy(src->variable);
+            dst->is_output = true;
+            array_push(outputs, dst);
+        }
+        
+        for (size_t i = 0; i < stmt->data.inline_asm.inputs.size; i++)
+        {
+            InlineAsmOperand *src = (InlineAsmOperand *)array_get(&stmt->data.inline_asm.inputs, i);
+            InlineAsmOperand *dst = safe_malloc(sizeof(InlineAsmOperand));
+            dst->constraint = string_copy(src->constraint);
+            dst->variable = string_copy(src->variable);
+            dst->is_output = false;
+            array_push(inputs, dst);
+        }
+        
+        for (size_t i = 0; i < stmt->data.inline_asm.clobbers.size; i++)
+        {
+            char *src = (char *)array_get(&stmt->data.inline_asm.clobbers, i);
+            char *dst = string_copy(src);
+            array_push(clobbers, dst);
+        }
+        
+        IRInstruction *asm_instr = ir_instruction_inline_asm(
+            stmt->data.inline_asm.asm_code,
+            stmt->data.inline_asm.is_volatile,
+            outputs,
+            inputs,
+            clobbers
+        );
+        ir_function_add_instruction(ir_func, asm_instr);
+        break;
+    }
     }
 }

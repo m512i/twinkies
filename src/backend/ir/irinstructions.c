@@ -235,6 +235,25 @@ IRInstruction *ir_instruction_var_decl(const char *var_name, DataType type)
     return instr;
 }
 
+IRInstruction *ir_instruction_inline_asm(const char *asm_code, bool is_volatile, DynamicArray *outputs, DynamicArray *inputs, DynamicArray *clobbers)
+{
+    IRInstruction *instr = safe_malloc(sizeof(IRInstruction));
+    instr->opcode = IR_INLINE_ASM;
+    instr->result = NULL;
+    instr->arg1 = NULL;
+    instr->arg2 = NULL;
+    instr->label = NULL;
+    instr->func_name = NULL;
+    instr->array_name = NULL;
+    instr->args = NULL;
+    instr->asm_code = string_copy(asm_code);
+    instr->asm_volatile = is_volatile;
+    instr->asm_outputs = outputs;
+    instr->asm_inputs = inputs;
+    instr->asm_clobbers = clobbers;
+    return instr;
+}
+
 void ir_instruction_destroy(IRInstruction *instr)
 {
     if (!instr)
@@ -258,6 +277,42 @@ void ir_instruction_destroy(IRInstruction *instr)
     }
     if (instr->label)
         safe_free(instr->label);
+    if (instr->asm_code)
+        safe_free(instr->asm_code);
+    if (instr->asm_outputs)
+    {
+        for (size_t i = 0; i < instr->asm_outputs->size; i++)
+        {
+            InlineAsmOperand *op = (InlineAsmOperand *)array_get(instr->asm_outputs, i);
+            safe_free(op->constraint);
+            safe_free(op->variable);
+            safe_free(op);
+        }
+        array_free(instr->asm_outputs);
+        safe_free(instr->asm_outputs);
+    }
+    if (instr->asm_inputs)
+    {
+        for (size_t i = 0; i < instr->asm_inputs->size; i++)
+        {
+            InlineAsmOperand *op = (InlineAsmOperand *)array_get(instr->asm_inputs, i);
+            safe_free(op->constraint);
+            safe_free(op->variable);
+            safe_free(op);
+        }
+        array_free(instr->asm_inputs);
+        safe_free(instr->asm_inputs);
+    }
+    if (instr->asm_clobbers)
+    {
+        for (size_t i = 0; i < instr->asm_clobbers->size; i++)
+        {
+            char *clobber = (char *)array_get(instr->asm_clobbers, i);
+            safe_free(clobber);
+        }
+        array_free(instr->asm_clobbers);
+        safe_free(instr->asm_clobbers);
+    }
     safe_free(instr);
 }
 

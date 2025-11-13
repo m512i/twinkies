@@ -111,6 +111,13 @@ void parser_error(Parser *parser, const char *message)
     }
 
     parser->had_error = true;
+    
+    if (debug_enabled)
+    {
+        printf("[DEBUG] Parser error at line %d, column %d: %s\n", 
+               parser->current.line, parser->current.column, message);
+        fflush(stdout);
+    }
 
     if (parser->error_context)
     {
@@ -342,9 +349,6 @@ Expr *parse_call(Parser *parser)
         }
         else if (parser_match(parser, TOKEN_LBRACKET))
         {
-            // For now, we'll use array indexing for all bracket operations
-            // The semantic analyzer will determine if it's string or array indexing
-            // based on the variable type. This allows the parser to be simpler.
             expr = finish_array_index(parser, expr);
         }
         else
@@ -476,6 +480,15 @@ Stmt *parse_statement(Parser *parser)
         }
         result = parse_include_directive(parser);
     }
+    else if (parser_match(parser, TOKEN_ASM))
+    {
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Parsing inline assembly\n");
+            fflush(stdout);
+        }
+        result = parse_inline_asm(parser);
+    }
     else if (parser_match(parser, TOKEN_LBRACE))
     {
         if (debug_enabled)
@@ -528,6 +541,22 @@ Stmt *parse_var_declaration(Parser *parser)
     if (parser_match(parser, TOKEN_INT))
     {
         type = TYPE_INT;
+    }
+    else if (parser_match(parser, TOKEN_INT8))
+    {
+        type = TYPE_INT; // Map to INT for now
+    }
+    else if (parser_match(parser, TOKEN_INT16))
+    {
+        type = TYPE_INT; // Map to INT for now
+    }
+    else if (parser_match(parser, TOKEN_INT32))
+    {
+        type = TYPE_INT; // Map to INT for now
+    }
+    else if (parser_match(parser, TOKEN_INT64))
+    {
+        type = TYPE_INT; // Map to INT for now
     }
     else if (parser_match(parser, TOKEN_BOOL))
     {
@@ -916,6 +945,42 @@ Function *parse_function_declaration(Parser *parser)
             fflush(stdout);
         }
     }
+    else if (parser_match(parser, TOKEN_INT8))
+    {
+        function->return_type = TYPE_INT; // Map to INT for now
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: INT8\n");
+            fflush(stdout);
+        }
+    }
+    else if (parser_match(parser, TOKEN_INT16))
+    {
+        function->return_type = TYPE_INT; // Map to INT for now
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: INT16\n");
+            fflush(stdout);
+        }
+    }
+    else if (parser_match(parser, TOKEN_INT32))
+    {
+        function->return_type = TYPE_INT; // Map to INT for now
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: INT32\n");
+            fflush(stdout);
+        }
+    }
+    else if (parser_match(parser, TOKEN_INT64))
+    {
+        function->return_type = TYPE_INT; // Map to INT for now (can be extended later)
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: INT64\n");
+            fflush(stdout);
+        }
+    }
     else if (parser_match(parser, TOKEN_BOOL))
     {
         function->return_type = TYPE_BOOL;
@@ -1037,6 +1102,42 @@ Function *parse_function(Parser *parser)
             fflush(stdout);
         }
     }
+    else if (parser_match(parser, TOKEN_INT8))
+    {
+        function->return_type = TYPE_INT; // Map to INT for now
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: INT8\n");
+            fflush(stdout);
+        }
+    }
+    else if (parser_match(parser, TOKEN_INT16))
+    {
+        function->return_type = TYPE_INT; // Map to INT for now
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: INT16\n");
+            fflush(stdout);
+        }
+    }
+    else if (parser_match(parser, TOKEN_INT32))
+    {
+        function->return_type = TYPE_INT; // Map to INT for now
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: INT32\n");
+            fflush(stdout);
+        }
+    }
+    else if (parser_match(parser, TOKEN_INT64))
+    {
+        function->return_type = TYPE_INT; // Map to INT for now (can be extended later)
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: INT64\n");
+            fflush(stdout);
+        }
+    }
     else if (parser_match(parser, TOKEN_BOOL))
     {
         function->return_type = TYPE_BOOL;
@@ -1112,6 +1213,22 @@ Parameter *parse_parameter(Parser *parser)
     if (parser_match(parser, TOKEN_INT))
     {
         type = TYPE_INT;
+    }
+    else if (parser_match(parser, TOKEN_INT8))
+    {
+        type = TYPE_INT; // Map to INT for now
+    }
+    else if (parser_match(parser, TOKEN_INT16))
+    {
+        type = TYPE_INT; // Map to INT for now
+    }
+    else if (parser_match(parser, TOKEN_INT32))
+    {
+        type = TYPE_INT; // Map to INT for now
+    }
+    else if (parser_match(parser, TOKEN_INT64))
+    {
+        type = TYPE_INT; // Map to INT for now
     }
     else if (parser_match(parser, TOKEN_BOOL))
     {
@@ -1387,6 +1504,374 @@ Stmt *parse_include_directive(Parser *parser)
     parser_advance(parser);
 
     return stmt_include(path, type, parser->previous.line, parser->previous.column);
+}
+
+Stmt *parse_inline_asm(Parser *parser)
+{
+    int line = parser->previous.line;
+    int column = parser->previous.column;
+    
+    bool is_volatile = parser_match(parser, TOKEN_VOLATILE);
+    
+    parser_consume(parser, TOKEN_LBRACE, "Expect '{' after 'asm'");
+    
+    if (!parser_check(parser, TOKEN_STRING_LITERAL))
+    {
+        parser_error(parser, "Expect assembly code string");
+        return NULL;
+    }
+    
+    DynamicArray string_parts;
+    array_init(&string_parts, 4);
+    
+    while (parser_check(parser, TOKEN_STRING_LITERAL))
+    {
+        char *str_part = string_copy(parser->current.literal.string_value);
+        if (str_part[0] == '"' && str_part[strlen(str_part) - 1] == '"')
+        {
+            char *temp = string_copy(str_part + 1);
+            safe_free(str_part);
+            str_part = temp;
+            str_part[strlen(str_part) - 1] = '\0';
+        }
+        array_push(&string_parts, str_part);
+        parser_advance(parser);
+    }
+    
+    size_t total_len = 0;
+    for (size_t i = 0; i < string_parts.size; i++)
+    {
+        char *part = (char*)array_get(&string_parts, i);
+        total_len += strlen(part);
+    }
+    
+    char *asm_code = safe_malloc(total_len + 1);
+    asm_code[0] = '\0';
+    for (size_t i = 0; i < string_parts.size; i++)
+    {
+        char *part = (char*)array_get(&string_parts, i);
+        strcat(asm_code, part);
+        safe_free(part);
+    }
+    array_free(&string_parts);
+    
+    Stmt *stmt = stmt_inline_asm(asm_code, is_volatile, line, column);
+    safe_free(asm_code);
+    
+    if (parser_match(parser, TOKEN_COLON))
+    {
+        while (true)
+        {
+            if (!parser_check(parser, TOKEN_STRING_LITERAL))
+                break;
+            
+            char *constraint = string_copy(parser->current.literal.string_value);
+            if (constraint[0] == '"' && constraint[strlen(constraint) - 1] == '"')
+            {
+                char *temp = string_copy(constraint + 1);
+                safe_free(constraint);
+                constraint = temp;
+                constraint[strlen(constraint) - 1] = '\0';
+            }
+            parser_advance(parser);
+            
+            parser_consume(parser, TOKEN_LPAREN, "Expect '(' after constraint");
+            if (!parser_check(parser, TOKEN_IDENTIFIER))
+            {
+                parser_error(parser, "Expect variable name");
+                safe_free(constraint);
+                break;
+            }
+            char *variable = string_copy(parser->current.lexeme);
+            parser_advance(parser);
+            parser_consume(parser, TOKEN_RPAREN, "Expect ')' after variable");
+            
+            stmt_add_inline_asm_output(stmt, constraint, variable);
+            safe_free(constraint);
+            safe_free(variable);
+            
+            if (!parser_match(parser, TOKEN_COMMA))
+                break;
+        }
+        
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Before checking for colon after outputs, current token: %s\n",
+                   token_type_to_string(parser->current.type));
+            fflush(stdout);
+        }
+        if (parser_match(parser, TOKEN_COLON))
+        {
+            if (debug_enabled)
+            {
+                printf("[DEBUG] After matching colon, current token: %s (type %d), lexeme: %s\n",
+                       token_type_to_string(parser->current.type),
+                       parser->current.type,
+                       parser->current.lexeme ? parser->current.lexeme : "(null)");
+                fflush(stdout);
+            }
+            bool had_empty_inputs = false;
+            if (parser_check(parser, TOKEN_COLON))
+            {
+                parser_advance(parser);
+                had_empty_inputs = true;
+            }
+            else
+            {
+                if (debug_enabled)
+                {
+                    printf("[DEBUG] Not a colon, checking if string literal. Current type: %d (%s), TOKEN_STRING_LITERAL=%d\n",
+                           parser->current.type, token_type_to_string(parser->current.type), TOKEN_STRING_LITERAL);
+                    fflush(stdout);
+                }
+            }
+            if (debug_enabled)
+            {
+                printf("[DEBUG] Checking condition: !had_empty_inputs=%d, parser_check(TOKEN_STRING_LITERAL)=%d, current type=%d\n",
+                       !had_empty_inputs, parser_check(parser, TOKEN_STRING_LITERAL), parser->current.type);
+                fflush(stdout);
+            }
+            if (!had_empty_inputs && parser_check(parser, TOKEN_STRING_LITERAL))
+            {
+                if (debug_enabled)
+                {
+                    printf("[DEBUG] Found string literal after colon, checking if input or clobber\n");
+                    fflush(stdout);
+                }
+
+                bool is_input = false;
+                Token peek = lexer_peek_token(parser->lexer);
+                is_input = (peek.type == TOKEN_LPAREN);
+                token_destroy(&peek);
+                
+                if (debug_enabled)
+                {
+                    printf("[DEBUG] After peek, is_input=%d, current token type: %d (%s)\n", 
+                           is_input, parser->current.type, token_type_to_string(parser->current.type));
+                    fflush(stdout);
+                }
+                
+                if (is_input)
+                {
+                    while (true)
+                    {
+                        if (!parser_check(parser, TOKEN_STRING_LITERAL))
+                            break;
+                        
+                        char *constraint = string_copy(parser->current.literal.string_value);
+                        if (constraint[0] == '"' && constraint[strlen(constraint) - 1] == '"')
+                        {
+                            char *temp = string_copy(constraint + 1);
+                            safe_free(constraint);
+                            constraint = temp;
+                            constraint[strlen(constraint) - 1] = '\0';
+                        }
+                        parser_advance(parser);
+                        
+                        parser_consume(parser, TOKEN_LPAREN, "Expect '(' after constraint");
+                        char *variable = NULL;
+                        if (parser_check(parser, TOKEN_IDENTIFIER))
+                        {
+                            variable = string_copy(parser->current.lexeme);
+                            parser_advance(parser);
+                        }
+                        else if (parser_check(parser, TOKEN_NUMBER))
+                        {
+                            char num_str[64];
+                            snprintf(num_str, sizeof(num_str), "%lld", parser->current.literal.number_value);
+                            variable = string_copy(num_str);
+                            parser_advance(parser);
+                        }
+                        else
+                        {
+                            parser_error(parser, "Expect variable name or number");
+                            safe_free(constraint);
+                            break;
+                        }
+                        parser_consume(parser, TOKEN_RPAREN, "Expect ')' after input operand");
+                        
+                        stmt_add_inline_asm_input(stmt, constraint, variable);
+                        safe_free(constraint);
+                        safe_free(variable);
+                        
+                        if (!parser_match(parser, TOKEN_COMMA))
+                            break;
+                    }
+                    
+                    if (parser_match(parser, TOKEN_COLON))
+                    {
+                        while (true)
+                        {
+                            if (!parser_check(parser, TOKEN_STRING_LITERAL))
+                                break;
+                            
+                            char *clobber = string_copy(parser->current.literal.string_value);
+                            if (clobber[0] == '"' && clobber[strlen(clobber) - 1] == '"')
+                            {
+                                char *temp = string_copy(clobber + 1);
+                                safe_free(clobber);
+                                clobber = temp;
+                                clobber[strlen(clobber) - 1] = '\0';
+                            }
+                            parser_advance(parser);
+                            
+                            stmt_add_inline_asm_clobber(stmt, clobber);
+                            safe_free(clobber);
+                            
+                            if (!parser_match(parser, TOKEN_COMMA))
+                                break;
+                        }
+                    }
+                }
+                else
+                {
+                    if (debug_enabled)
+                    {
+                        printf("[DEBUG] Entering clobbers section (no inputs), current token: %s, lexeme: %s\n", 
+                               token_type_to_string(parser->current.type),
+                               parser->current.lexeme ? parser->current.lexeme : "(null)");
+                        fflush(stdout);
+                    }
+                    while (true)
+                    {
+                        if (debug_enabled)
+                        {
+                            printf("[DEBUG] Checking for string literal in clobbers loop, current: %s\n", 
+                                   token_type_to_string(parser->current.type));
+                            fflush(stdout);
+                        }
+                        if (!parser_check(parser, TOKEN_STRING_LITERAL))
+                            break;
+                        
+                        char *clobber = string_copy(parser->current.literal.string_value);
+                        if (clobber[0] == '"' && clobber[strlen(clobber) - 1] == '"')
+                        {
+                            char *temp = string_copy(clobber + 1);
+                            safe_free(clobber);
+                            clobber = temp;
+                            clobber[strlen(clobber) - 1] = '\0';
+                        }
+                        parser_advance(parser);
+                        
+                        stmt_add_inline_asm_clobber(stmt, clobber);
+                        safe_free(clobber);
+                        
+                        if (!parser_match(parser, TOKEN_COMMA))
+                            break;
+                    }
+                    if (debug_enabled)
+                    {
+                        printf("[DEBUG] After parsing clobbers (no inputs), current token: %s (line %d, col %d)\n", 
+                               token_type_to_string(parser->current.type),
+                               parser->current.line, parser->current.column);
+                        fflush(stdout);
+                    }
+                }
+            }
+            else
+            {
+                if (parser->current.type == TOKEN_STRING_LITERAL)
+                {
+                    if (debug_enabled)
+                    {
+                        printf("[DEBUG] Found string literal in else branch, treating as clobber\n");
+                        fflush(stdout);
+                    }
+                    while (true)
+                    {
+                        if (parser->current.type != TOKEN_STRING_LITERAL)
+                            break;
+                        
+                        char *clobber = string_copy(parser->current.literal.string_value);
+                        if (clobber[0] == '"' && clobber[strlen(clobber) - 1] == '"')
+                        {
+                            char *temp = string_copy(clobber + 1);
+                            safe_free(clobber);
+                            clobber = temp;
+                            clobber[strlen(clobber) - 1] = '\0';
+                        }
+                        parser_advance(parser);
+                        
+                        stmt_add_inline_asm_clobber(stmt, clobber);
+                        safe_free(clobber);
+                        
+                        if (!parser_match(parser, TOKEN_COMMA))
+                            break;
+                    }
+                }
+                else
+                {
+                    if (debug_enabled)
+                    {
+                        printf("[DEBUG] After colon, expected string literal but got: %s\n", 
+                               token_type_to_string(parser->current.type));
+                        fflush(stdout);
+                    }
+                }
+            }
+            
+            if (debug_enabled)
+            {
+                printf("[DEBUG] Before checking had_empty_inputs, current token: %s\n", 
+                       token_type_to_string(parser->current.type));
+                fflush(stdout);
+            }
+            
+            if (had_empty_inputs && parser_check(parser, TOKEN_COLON))
+            {
+                parser_advance(parser); 
+                while (true)
+                {
+                    if (!parser_check(parser, TOKEN_STRING_LITERAL))
+                        break;
+                    
+                    char *clobber = string_copy(parser->current.literal.string_value);
+                    if (clobber[0] == '"' && clobber[strlen(clobber) - 1] == '"')
+                    {
+                        char *temp = string_copy(clobber + 1);
+                        safe_free(clobber);
+                        clobber = temp;
+                        clobber[strlen(clobber) - 1] = '\0';
+                    }
+                    parser_advance(parser);
+                    
+                    stmt_add_inline_asm_clobber(stmt, clobber);
+                    safe_free(clobber);
+                    
+                    if (!parser_match(parser, TOKEN_COMMA))
+                        break;
+                }
+            }
+        }
+        if (debug_enabled)
+        {
+            printf("[DEBUG] After exiting outputs block, current token: %s (line %d, col %d)\n", 
+                   token_type_to_string(parser->current.type),
+                   parser->current.line, parser->current.column);
+            fflush(stdout);
+        }
+    }
+    
+    if (debug_enabled)
+    {
+        printf("[DEBUG] Before consuming RBRACE, current token: %s (line %d, col %d)\n", 
+               token_type_to_string(parser->current.type), 
+               parser->current.line, parser->current.column);
+        if (parser->current.lexeme)
+        {
+            printf("[DEBUG] Current token lexeme: %s\n", parser->current.lexeme);
+        }
+        fflush(stdout);
+    }
+    parser_consume(parser, TOKEN_RBRACE, "Expect '}' after inline assembly");
+    
+    if (!parser_match(parser, TOKEN_SEMICOLON))
+    {
+        parser_error(parser, "Expect ';' after inline assembly statement");
+        parser_synchronize(parser);
+    }
+    
+    return stmt;
 }
 
 FFIFunction *parse_extern_declaration(Parser *parser, Program *program)

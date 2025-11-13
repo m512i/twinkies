@@ -23,6 +23,7 @@ IRInstruction *ir_instruction_bounds_check(IROperand *index, IROperand *size, co
 IRInstruction *ir_instruction_array_decl(const char *array_name, int size, DataType element_type);
 IRInstruction *ir_instruction_array_init(const char *array_name, int size, DataType element_type, IROperand *value);
 IRInstruction *ir_instruction_var_decl(const char *var_name, DataType type);
+IRInstruction *ir_instruction_inline_asm(const char *asm_code, bool is_volatile, DynamicArray *outputs, DynamicArray *inputs, DynamicArray *clobbers);
 
 void ir_instruction_destroy(IRInstruction *instr);
 void ir_instruction_print(const IRInstruction *instr);

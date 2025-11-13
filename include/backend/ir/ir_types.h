@@ -5,10 +5,6 @@
 #include "frontend/ast/ast.h"
 #include "analysis/semantic/semantic.h"
 
-// ============================================================================
-// IR TYPE DEFINITIONS - Core IR data structures
-// ============================================================================
-
 typedef enum {
     IR_OP_TEMP,
     IR_OP_VAR,
@@ -65,7 +61,8 @@ typedef enum {
     IR_BOUNDS_CHECK,
     IR_ARRAY_DECL,
     IR_ARRAY_INIT,
-    IR_VAR_DECL
+    IR_VAR_DECL,
+    IR_INLINE_ASM
 } IROpcode;
 
 typedef struct IRInstruction {
@@ -79,6 +76,11 @@ typedef struct IRInstruction {
     int array_size;
     DataType element_type;
     DynamicArray *args;
+    char *asm_code;
+    DynamicArray *asm_outputs;  
+    DynamicArray *asm_inputs;   
+    DynamicArray *asm_clobbers; 
+    bool asm_volatile;
 } IRInstruction;
 
 typedef struct LoopContext {

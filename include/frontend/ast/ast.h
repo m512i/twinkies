@@ -44,7 +44,8 @@ typedef enum
     STMT_RETURN,
     STMT_PRINT,
     STMT_BLOCK,
-    STMT_INCLUDE
+    STMT_INCLUDE,
+    STMT_INLINE_ASM
 } StmtType;
 
 typedef enum
@@ -202,8 +203,23 @@ struct Stmt
             char *path;
             IncludeType type;
         } include;
+
+        struct
+        {
+            char *asm_code;           
+            DynamicArray outputs;     
+            DynamicArray inputs;      
+            DynamicArray clobbers;    
+            bool is_volatile;         
+        } inline_asm;
     } data;
 };
+
+typedef struct InlineAsmOperand {
+    char *constraint;  
+    char *variable;    
+    bool is_output;    
+} InlineAsmOperand;
 
 struct Parameter
 {

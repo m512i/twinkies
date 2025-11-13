@@ -274,6 +274,14 @@ static TLTokenType identifier_type(const char *lexeme)
         return TOKEN_FROM;
     if (strcmp(lexeme, "int") == 0)
         return TOKEN_INT;
+    if (strcmp(lexeme, "int8") == 0)
+        return TOKEN_INT8;
+    if (strcmp(lexeme, "int16") == 0)
+        return TOKEN_INT16;
+    if (strcmp(lexeme, "int32") == 0)
+        return TOKEN_INT32;
+    if (strcmp(lexeme, "int64") == 0)
+        return TOKEN_INT64;
     if (strcmp(lexeme, "bool") == 0)
         return TOKEN_BOOL;
     if (strcmp(lexeme, "float") == 0)
@@ -288,6 +296,10 @@ static TLTokenType identifier_type(const char *lexeme)
         return TOKEN_FALSE;
     if (strcmp(lexeme, "null") == 0)
         return TOKEN_NULL;
+    if (strcmp(lexeme, "asm") == 0)
+        return TOKEN_ASM;
+    if (strcmp(lexeme, "volatile") == 0)
+        return TOKEN_VOLATILE;
     return TOKEN_IDENTIFIER;
 }
 
@@ -548,6 +560,7 @@ Token lexer_peek_token(Lexer *lexer)
     size_t saved_current = lexer->current;
     int saved_line = lexer->line;
     int saved_column = lexer->column;
+    Error *saved_error = lexer->error;
 
     Token token = lexer_next_token(lexer);
 
@@ -555,6 +568,7 @@ Token lexer_peek_token(Lexer *lexer)
     lexer->current = saved_current;
     lexer->line = saved_line;
     lexer->column = saved_column;
+    lexer->error = saved_error;
 
     return token;
 }
@@ -592,6 +606,14 @@ const char *token_type_to_string(TLTokenType type)
         return "PRINT";
     case TOKEN_INT:
         return "INT";
+    case TOKEN_INT8:
+        return "INT8";
+    case TOKEN_INT16:
+        return "INT16";
+    case TOKEN_INT32:
+        return "INT32";
+    case TOKEN_INT64:
+        return "INT64";
     case TOKEN_BOOL:
         return "BOOL";
     case TOKEN_FLOAT:
@@ -660,12 +682,18 @@ const char *token_type_to_string(TLTokenType type)
         return "NULL";
     case TOKEN_STRING:
         return "STRING";
+    case TOKEN_STRING_LITERAL:
+        return "STRING_LITERAL";
     case TOKEN_STRING_TYPE:
         return "STRING_TYPE";
     case TOKEN_INCLUDE:
         return "INCLUDE";
     case TOKEN_HASH:
         return "HASH";
+    case TOKEN_ASM:
+        return "ASM";
+    case TOKEN_VOLATILE:
+        return "VOLATILE";
     default:
         return "UNKNOWN";
     }

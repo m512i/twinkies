@@ -236,6 +236,8 @@ const char *ir_opcode_to_string(IROpcode opcode)
         return "ARRAY_INIT";
     case IR_VAR_DECL:
         return "VAR_DECL";
+    case IR_INLINE_ASM:
+        return "INLINE_ASM";
     default:
         return "UNKNOWN";
     }

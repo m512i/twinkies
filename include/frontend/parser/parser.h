@@ -42,6 +42,7 @@ Stmt *parse_continue_statement(Parser *parser);
 Stmt *parse_return_statement(Parser *parser);
 Stmt *parse_print_statement(Parser *parser);
 Stmt *parse_include_directive(Parser *parser);
+Stmt *parse_inline_asm(Parser *parser);
 Stmt *parse_expression_statement(Parser *parser);
 Stmt *parse_block(Parser *parser);
 

@@ -16,10 +16,14 @@ Stmt *stmt_continue(int line, int column);
 Stmt *stmt_return(Expr *value, int line, int column);
 Stmt *stmt_print_stmt(int line, int column);
 Stmt *stmt_include(const char *path, IncludeType type, int line, int column);
+Stmt *stmt_inline_asm(const char *asm_code, bool is_volatile, int line, int column);
 Stmt *stmt_block(int line, int column);
 
 void stmt_add_block_stmt(Stmt *block, Stmt *stmt);
 void stmt_add_print_arg(Stmt *print_stmt, Expr *arg);
+void stmt_add_inline_asm_output(Stmt *stmt, const char *constraint, const char *variable);
+void stmt_add_inline_asm_input(Stmt *stmt, const char *constraint, const char *variable);
+void stmt_add_inline_asm_clobber(Stmt *stmt, const char *clobber);
 void stmt_destroy(Stmt *stmt);
 Stmt *stmt_copy(Stmt *stmt);
 void stmt_print(const Stmt *stmt, int indent);

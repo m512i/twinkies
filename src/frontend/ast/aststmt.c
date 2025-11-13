@@ -131,6 +131,53 @@ Stmt *stmt_include(const char *path, IncludeType type, int line, int column)
     return stmt;
 }
 
+Stmt *stmt_inline_asm(const char *asm_code, bool is_volatile, int line, int column)
+{
+    Stmt *stmt = safe_malloc(sizeof(Stmt));
+    stmt->type = STMT_INLINE_ASM;
+    stmt->line = line;
+    stmt->column = column;
+    stmt->data.inline_asm.asm_code = string_copy(asm_code);
+    stmt->data.inline_asm.is_volatile = is_volatile;
+    array_init(&stmt->data.inline_asm.outputs, 4);
+    array_init(&stmt->data.inline_asm.inputs, 4);
+    array_init(&stmt->data.inline_asm.clobbers, 4);
+    return stmt;
+}
+
+void stmt_add_inline_asm_output(Stmt *stmt, const char *constraint, const char *variable)
+{
+    if (stmt->type != STMT_INLINE_ASM)
+        return;
+    
+    InlineAsmOperand *operand = safe_malloc(sizeof(InlineAsmOperand));
+    operand->constraint = string_copy(constraint);
+    operand->variable = string_copy(variable);
+    operand->is_output = true;
+    array_push(&stmt->data.inline_asm.outputs, operand);
+}
+
+void stmt_add_inline_asm_input(Stmt *stmt, const char *constraint, const char *variable)
+{
+    if (stmt->type != STMT_INLINE_ASM)
+        return;
+    
+    InlineAsmOperand *operand = safe_malloc(sizeof(InlineAsmOperand));
+    operand->constraint = string_copy(constraint);
+    operand->variable = string_copy(variable);
+    operand->is_output = false;
+    array_push(&stmt->data.inline_asm.inputs, operand);
+}
+
+void stmt_add_inline_asm_clobber(Stmt *stmt, const char *clobber)
+{
+    if (stmt->type != STMT_INLINE_ASM)
+        return;
+    
+    char *clobber_str = string_copy(clobber);
+    array_push(&stmt->data.inline_asm.clobbers, clobber_str);
+}
+
 Stmt *stmt_block(int line, int column)
 {
     Stmt *stmt = safe_malloc(sizeof(Stmt));
@@ -210,6 +257,31 @@ void stmt_destroy(Stmt *stmt)
     case STMT_INCLUDE:
         safe_free(stmt->data.include.path);
         break;
+    case STMT_INLINE_ASM:
+        safe_free(stmt->data.inline_asm.asm_code);
+        for (size_t i = 0; i < stmt->data.inline_asm.outputs.size; i++)
+        {
+            InlineAsmOperand *op = (InlineAsmOperand *)array_get(&stmt->data.inline_asm.outputs, i);
+            safe_free(op->constraint);
+            safe_free(op->variable);
+            safe_free(op);
+        }
+        array_free(&stmt->data.inline_asm.outputs);
+        for (size_t i = 0; i < stmt->data.inline_asm.inputs.size; i++)
+        {
+            InlineAsmOperand *op = (InlineAsmOperand *)array_get(&stmt->data.inline_asm.inputs, i);
+            safe_free(op->constraint);
+            safe_free(op->variable);
+            safe_free(op);
+        }
+        array_free(&stmt->data.inline_asm.inputs);
+        for (size_t i = 0; i < stmt->data.inline_asm.clobbers.size; i++)
+        {
+            char *clobber = (char *)array_get(&stmt->data.inline_asm.clobbers, i);
+            safe_free(clobber);
+        }
+        array_free(&stmt->data.inline_asm.clobbers);
+        break;
     }
     safe_free(stmt);
 }
@@ -284,6 +356,37 @@ Stmt *stmt_copy(Stmt *stmt)
     case STMT_INCLUDE:
         copy->data.include.path = string_copy(stmt->data.include.path);
         copy->data.include.type = stmt->data.include.type;
+        break;
+    case STMT_INLINE_ASM:
+        copy->data.inline_asm.asm_code = string_copy(stmt->data.inline_asm.asm_code);
+        copy->data.inline_asm.is_volatile = stmt->data.inline_asm.is_volatile;
+        array_init(&copy->data.inline_asm.outputs, sizeof(InlineAsmOperand*));
+        array_init(&copy->data.inline_asm.inputs, sizeof(InlineAsmOperand*));
+        array_init(&copy->data.inline_asm.clobbers, sizeof(char*));
+        for (size_t i = 0; i < stmt->data.inline_asm.outputs.size; i++)
+        {
+            InlineAsmOperand *src = (InlineAsmOperand *)array_get(&stmt->data.inline_asm.outputs, i);
+            InlineAsmOperand *dst = safe_malloc(sizeof(InlineAsmOperand));
+            dst->constraint = string_copy(src->constraint);
+            dst->variable = string_copy(src->variable);
+            dst->is_output = true;
+            array_push(&copy->data.inline_asm.outputs, dst);
+        }
+        for (size_t i = 0; i < stmt->data.inline_asm.inputs.size; i++)
+        {
+            InlineAsmOperand *src = (InlineAsmOperand *)array_get(&stmt->data.inline_asm.inputs, i);
+            InlineAsmOperand *dst = safe_malloc(sizeof(InlineAsmOperand));
+            dst->constraint = string_copy(src->constraint);
+            dst->variable = string_copy(src->variable);
+            dst->is_output = false;
+            array_push(&copy->data.inline_asm.inputs, dst);
+        }
+        for (size_t i = 0; i < stmt->data.inline_asm.clobbers.size; i++)
+        {
+            char *src = (char *)array_get(&stmt->data.inline_asm.clobbers, i);
+            char *dst = string_copy(src);
+            array_push(&copy->data.inline_asm.clobbers, dst);
+        }
         break;
     }
 
@@ -384,6 +487,10 @@ void stmt_print(const Stmt *stmt, int indent)
     case STMT_INCLUDE:
         printf("Include: %s (%s)", stmt->data.include.path,
                stmt->data.include.type == INCLUDE_SYSTEM ? "system" : "local");
+        break;
+    case STMT_INLINE_ASM:
+        printf("InlineAsm: %s (volatile: %s)", stmt->data.inline_asm.asm_code,
+               stmt->data.inline_asm.is_volatile ? "yes" : "no");
         break;
     }
 

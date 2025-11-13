@@ -27,6 +27,7 @@ void codegen_handle_bounds_check(CodeGenerator *generator, IRInstruction *instr)
 void codegen_handle_array_decl(CodeGenerator *generator, IRInstruction *instr);
 void codegen_handle_array_init(CodeGenerator *generator, IRInstruction *instr);
 void codegen_handle_var_decl(CodeGenerator *generator, IRInstruction *instr);
+void codegen_handle_inline_asm(CodeGenerator *generator, IRInstruction *instr);
 
 void codegen_instruction_handlers_generate_instruction(CodeGenerator *generator, IRInstruction *instr);
 

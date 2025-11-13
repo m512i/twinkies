@@ -73,6 +73,9 @@ void codegen_instruction_handlers_generate_instruction(CodeGenerator *generator,
     case IR_VAR_DECL:
         codegen_handle_var_decl(generator, instr);
         break;
+    case IR_INLINE_ASM:
+        codegen_handle_inline_asm(generator, instr);
+        break;
     case IR_EQ:
     case IR_NE:
     case IR_LT:
@@ -385,4 +388,138 @@ void codegen_handle_var_decl(CodeGenerator *generator, IRInstruction *instr)
     (void)generator;
     (void)instr;
     // Variable declarations are handled in function header generation
+}
+
+void codegen_handle_inline_asm(CodeGenerator *generator, IRInstruction *instr)
+{
+    if (!instr || !instr->asm_code)
+        return;
+    
+    codegen_core_write_indent(generator);
+    
+    if (instr->asm_volatile)
+    {
+        fprintf(generator->output_file, "__asm__ __volatile__");
+    }
+    else
+    {
+        fprintf(generator->output_file, "__asm__");
+    }
+    
+    fprintf(generator->output_file, "(\n");
+    generator->indent_level++;
+    codegen_core_write_indent(generator);
+    
+    const char *asm_code = instr->asm_code;
+    const char *start = asm_code;
+    const char *p = asm_code;
+    
+    while (*p)
+    {
+        if (*p == '\n')
+        {
+            size_t len = p - start;
+            if (len > 0)
+            {
+                fprintf(generator->output_file, "\"");
+                for (size_t i = 0; i < len; i++)
+                {
+                    char c = start[i];
+                    if (c == '"' || c == '\\')
+                        fprintf(generator->output_file, "\\%c", c);
+                    else if (c == '\t')
+                        fprintf(generator->output_file, "\\t");
+                    else
+                        fprintf(generator->output_file, "%c", c);
+                }
+                fprintf(generator->output_file, "\\n\"\n");
+                codegen_core_write_indent(generator);
+            }
+            start = p + 1;
+        }
+        p++;
+    }
+    
+    if (p > start)
+    {
+        fprintf(generator->output_file, "\"");
+        while (*start)
+        {
+            char c = *start;
+            if (c == '"' || c == '\\')
+                fprintf(generator->output_file, "\\%c", c);
+            else if (c == '\t')
+                fprintf(generator->output_file, "\\t");
+            else
+                fprintf(generator->output_file, "%c", c);
+            start++;
+        }
+        fprintf(generator->output_file, "\"\n");
+    }
+    else
+    {
+        fprintf(generator->output_file, "\"\"\n");
+    }
+    
+    if (instr->asm_outputs && instr->asm_outputs->size > 0)
+    {
+        codegen_core_write_indent(generator);
+        fprintf(generator->output_file, ": ");
+        
+        for (size_t i = 0; i < instr->asm_outputs->size; i++)
+        {
+            if (i > 0)
+                fprintf(generator->output_file, ", ");
+            
+            InlineAsmOperand *op = (InlineAsmOperand *)array_get(instr->asm_outputs, i);
+            fprintf(generator->output_file, "\"%s\" (%s)", op->constraint, op->variable);
+        }
+        fprintf(generator->output_file, "\n");
+    }
+    else
+    {
+        codegen_core_write_indent(generator);
+        fprintf(generator->output_file, ":\n");
+    }
+    
+    if (instr->asm_inputs && instr->asm_inputs->size > 0)
+    {
+        codegen_core_write_indent(generator);
+        fprintf(generator->output_file, ": ");
+        
+        for (size_t i = 0; i < instr->asm_inputs->size; i++)
+        {
+            if (i > 0)
+                fprintf(generator->output_file, ", ");
+            
+            InlineAsmOperand *op = (InlineAsmOperand *)array_get(instr->asm_inputs, i);
+            fprintf(generator->output_file, "\"%s\" (%s)", op->constraint, op->variable);
+        }
+        fprintf(generator->output_file, "\n");
+    }
+    else
+    {
+        codegen_core_write_indent(generator);
+        fprintf(generator->output_file, ":\n");
+    }
+    
+    if (instr->asm_clobbers && instr->asm_clobbers->size > 0)
+    {
+        codegen_core_write_indent(generator);
+        fprintf(generator->output_file, ": ");
+        
+        for (size_t i = 0; i < instr->asm_clobbers->size; i++)
+        {
+            if (i > 0)
+                fprintf(generator->output_file, ", ");
+            
+            char *clobber = (char *)array_get(instr->asm_clobbers, i);
+            fprintf(generator->output_file, "\"%s\"", clobber);
+        }
+        fprintf(generator->output_file, "\n");
+    }
+    
+    generator->indent_level--;
+    codegen_core_write_indent(generator);
+    fprintf(generator->output_file, ");\n");
 }

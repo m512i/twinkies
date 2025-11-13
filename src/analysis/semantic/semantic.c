@@ -840,6 +840,15 @@ static DataType type_check_statement_in_loop(SemanticAnalyzer *analyzer, Stmt *s
         return TYPE_VOID;
     }
 
+    case STMT_INCLUDE:
+        // Include statements are handled at parse time, no semantic checking needed
+        return TYPE_VOID;
+
+    case STMT_INLINE_ASM:
+        // Inline assembly statements are passed through to code generation
+        // No semantic checking needed - the assembly code is trusted
+        return TYPE_VOID;
+
     default:
         return type_check_statement(analyzer, stmt);
     }
