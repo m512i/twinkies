@@ -2,7 +2,7 @@
 
 A modern compiler for the Twink programming language that transpiles to C and assembly. Twink is a statically typed language with C-like syntax, designed for simplicity and performance.
 
-![Twinkies Logo](Z.png)
+![Twinkies Logo](twinkies.png)
 
 ## Project Structure / Flow
 
