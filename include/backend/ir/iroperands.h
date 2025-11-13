@@ -2,7 +2,7 @@
 #define IROPERANDS_H
 
 #include "backend/ir/ir_types.h"
-#include "backend/codegen_core.h"
+#include "backend/codegen/codegen_core.h"
 
 IROperand *ir_operand_temp(int temp_id);
 IROperand *ir_operand_var(const char *var_name);

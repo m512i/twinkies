@@ -149,9 +149,17 @@ void parser_error(Parser *parser, const char *message)
             strcpy(suggestion, "Provide a numeric size for the array (e.g., '[5]')");
         }
 
+        int error_line = parser->current.line;
+        int error_column = parser->current.column;
+        if (strstr(message, "Expect ';'"))
+        {
+            error_line = parser->previous.line;
+            error_column = parser->previous.column;
+        }
+
         error_context_add_error(parser->error_context, ERROR_PARSER, SEVERITY_ERROR,
                                 message, suggestion[0] != '\0' ? suggestion : NULL,
-                                parser->current.line, parser->current.column);
+                                error_line, error_column);
     }
 
     // Don't synchronize immediately - let the parser continue to collect more errors

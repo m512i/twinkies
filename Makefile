@@ -1,6 +1,6 @@
 # Compiler for twink lang
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -g -Iinclude
+CFLAGS = -Wall -Wextra -std=c99 -g -Iinclude -Iinclude/backend/codegen
 LDFLAGS = 
 
 SRCDIR = src
@@ -94,7 +94,7 @@ help:
 	@echo "  uninstall- Remove installed compiler"
 	@echo "  help     - Show this help message"
 
-$(BUILDDIR)/main.o: $(SRCDIR)/main.c $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h $(INCLUDEDIR)/frontend/parser/parser.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/analysis/semantic/semantic.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/backend/codegen.h
+$(BUILDDIR)/main.o: $(SRCDIR)/main.c $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h $(INCLUDEDIR)/frontend/parser/parser.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/analysis/semantic/semantic.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/backend/codegen/codegen.h
 
 $(BUILDDIR)/common/common.o: $(SRCDIR)/common/common.c $(INCLUDEDIR)/common/common.h
 
@@ -112,13 +112,23 @@ $(BUILDDIR)/analysis/semantic/semantic.o: $(SRCDIR)/analysis/semantic/semantic.c
 
 $(BUILDDIR)/backend/ir/ir.o: $(SRCDIR)/backend/ir/ir.c $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/codegen/codegen.o: $(SRCDIR)/backend/codegen/codegen.c $(INCLUDEDIR)/backend/codegen.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+$(BUILDDIR)/backend/codegen/codegen.o: $(SRCDIR)/backend/codegen/codegen.c $(INCLUDEDIR)/backend/codegen/codegen.h $(INCLUDEDIR)/backend/codegen/codegen_core.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/assembly/codegenasm.o: $(SRCDIR)/backend/assembly/codegenasm.c $(INCLUDEDIR)/backend/codegen.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+$(BUILDDIR)/backend/codegen/codegen_core.o: $(SRCDIR)/backend/codegen/codegen_core.c $(INCLUDEDIR)/backend/codegen/codegen_core.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+
+$(BUILDDIR)/backend/codegen/codegen_c_writer.o: $(SRCDIR)/backend/codegen/codegen_c_writer.c $(INCLUDEDIR)/backend/codegen/codegen_c_writer.h $(INCLUDEDIR)/backend/codegen/codegen_core.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+
+$(BUILDDIR)/backend/codegen/codegen_ffi.o: $(SRCDIR)/backend/codegen/codegen_ffi.c $(INCLUDEDIR)/backend/codegen/codegen_ffi.h $(INCLUDEDIR)/backend/codegen/codegen_core.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+
+$(BUILDDIR)/backend/codegen/codegen_instruction_handlers.o: $(SRCDIR)/backend/codegen/codegen_instruction_handlers.c $(INCLUDEDIR)/backend/codegen/codegen_instruction_handlers.h $(INCLUDEDIR)/backend/codegen/codegen_core.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+
+$(BUILDDIR)/backend/codegen/codegen_strategy.o: $(SRCDIR)/backend/codegen/codegen_strategy.c $(INCLUDEDIR)/backend/codegen/codegen_strategy.h $(INCLUDEDIR)/backend/codegen/codegen_core.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+
+$(BUILDDIR)/backend/assembly/codegenasm.o: $(SRCDIR)/backend/assembly/codegenasm.c $(INCLUDEDIR)/backend/codegen/codegen.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
 
 $(BUILDDIR)/common/flags.o: $(SRCDIR)/common/flags.c $(INCLUDEDIR)/common/flags.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/common/utils.o: $(SRCDIR)/common/utils.c $(INCLUDEDIR)/common/utils.h $(INCLUDEDIR)/common/flags.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h $(INCLUDEDIR)/frontend/parser/parser.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/analysis/semantic/semantic.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/backend/codegen.h
+$(BUILDDIR)/common/utils.o: $(SRCDIR)/common/utils.c $(INCLUDEDIR)/common/utils.h $(INCLUDEDIR)/common/flags.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h $(INCLUDEDIR)/frontend/parser/parser.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/analysis/semantic/semantic.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/backend/codegen/codegen.h
 
 $(BUILDDIR)/modules/modules.o: $(SRCDIR)/modules/modules.c $(INCLUDEDIR)/modules/modules.h $(INCLUDEDIR)/common/utils.h $(INCLUDEDIR)/common/common.h
 

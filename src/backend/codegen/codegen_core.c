@@ -1,8 +1,8 @@
-#include "backend/codegen_core.h"
-#include "backend/codegen_strategy.h"
-#include "backend/codegen_instruction_handlers.h"
-#include "backend/codegen_ffi.h"
-#include "backend/codegen_c_writer.h"
+#include "backend/codegen/codegen_core.h"
+#include "backend/codegen/codegen_strategy.h"
+#include "backend/codegen/codegen_instruction_handlers.h"
+#include "backend/codegen/codegen_ffi.h"
+#include "backend/codegen/codegen_c_writer.h"
 #include "common/flags.h"
 #include <stdio.h>
 #include <stdlib.h>

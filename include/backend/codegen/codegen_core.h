@@ -35,11 +35,20 @@ void codegen_core_destroy(CodeGenerator *generator);
 bool codegen_core_generate(CodeGenerator *generator);
 void codegen_core_generate_program(CodeGenerator *generator);
 void codegen_core_generate_function(CodeGenerator *generator, IRFunction *func);
+void codegen_core_generate_instruction(CodeGenerator *generator, IRInstruction *instr);
 void codegen_core_write_indent(CodeGenerator *generator);
 void codegen_core_write_line(CodeGenerator *generator, const char *format, ...);
+void codegen_core_write_runtime_functions(CodeGenerator *generator);
+void codegen_core_write_header(CodeGenerator *generator);
+void codegen_core_write_ffi_declarations(CodeGenerator *generator, Program *program);
+void codegen_core_write_ffi_loading(CodeGenerator *generator, Program *program);
 void codegen_core_error(CodeGenerator *generator, const char *message);
 const char *codegen_core_get_c_type_string(DataType type);
 bool codegen_core_is_array_variable(CodeGenerator *generator, const char *var_name);
 int codegen_core_get_array_size(CodeGenerator *generator, const char *var_name);
+void codegen_core_write_function_header(CodeGenerator *generator, IRFunction *func);
+void codegen_core_write_function_footer(CodeGenerator *generator);
+void codegen_core_write_main_function(CodeGenerator *generator);
+void codegen_core_write_operand(CodeGenerator *generator, IROperand *operand);
 
 #endif

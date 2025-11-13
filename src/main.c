@@ -6,7 +6,7 @@
 #include "frontend/ast/ast.h"
 #include "analysis/semantic/semantic.h"
 #include "backend/ir/ir.h"
-#include "backend/codegen.h"
+#include "backend/codegen/codegen.h"
 #include "modules/modules.h"
 #include <stdio.h>
 #include <stdlib.h>

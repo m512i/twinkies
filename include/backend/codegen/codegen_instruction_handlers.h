@@ -3,7 +3,7 @@
 
 #include "common/common.h"
 #include "backend/ir/ir.h"
-#include "backend/codegen_core.h"
+#include "backend/codegen/codegen_core.h"
 #include <stdio.h>
 void codegen_handle_nop(CodeGenerator *generator, IRInstruction *instr);
 void codegen_handle_label(CodeGenerator *generator, IRInstruction *instr);

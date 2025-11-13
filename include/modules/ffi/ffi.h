@@ -4,7 +4,7 @@
 #include "common/common.h"
 #include "frontend/ast/ast.h"
 #include "analysis/semantic/semantic.h"
-#include "backend/codegen.h"
+#include "backend/codegen/codegen.h"
 #include "backend/ir/ir.h"
 #include "modules/ffi/fficonfig.h"
 
