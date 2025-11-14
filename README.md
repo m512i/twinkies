@@ -66,6 +66,7 @@ graph TD
 - **Static typing** with type inference
 - **C-like syntax** that's familiar and easy to learn
 - **FFI support** for calling external libraries
+- **Inline Assembly** with GCC-style syntax
 - **Module system** with header files
 - **Multiple output formats** - transpile to C or compile to assembly
 - **Built-in debugging** tools and memory profiling
