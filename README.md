@@ -1,6 +1,6 @@
 # Twinkies
 
-A modern compiler for the Twink programming language that transpiles to C and assembly. Twink is a statically typed language with C-like syntax, designed for simplicity and performance.
+A modern compiler for the Twinkies programming language that transpiles to C and assembly. Twinkies is a statically typed language with C-like syntax, designed for simplicity and performance.
 
 ![Twinkies Logo](image.png)
 
