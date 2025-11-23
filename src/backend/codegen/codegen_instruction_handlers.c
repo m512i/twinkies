@@ -53,6 +53,7 @@ void codegen_instruction_handlers_generate_instruction(CodeGenerator *generator,
         codegen_handle_return(generator, instr);
         break;
     case IR_PRINT:
+    case IR_PRINT_MULTIPLE:
         codegen_handle_print(generator, instr);
         break;
     case IR_ARRAY_LOAD:

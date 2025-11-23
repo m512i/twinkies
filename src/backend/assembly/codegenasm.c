@@ -317,6 +317,19 @@ void codegenasm_generate_instruction(CodeGenerator *generator, IRInstruction *in
     case IR_PRINT:
         codegenasm_print(generator, instr->arg1);
         break;
+    case IR_PRINT_MULTIPLE:
+        // Handle multiple print arguments for now, treat same as IR_PRINT
+        if (instr->args && instr->args->size > 0)
+        {
+            IROperand *first_arg = (IROperand *)array_get(instr->args, 0);
+            codegenasm_print(generator, first_arg);
+        }
+        break;
+    case IR_INLINE_ASM:
+        /* Inline assembly is not supported in assembly codegen
+         Could emit the assembly code directly, but for now just skip
+         */
+        break;
     case IR_ARRAY_LOAD:
         codegenasm_array_load(generator, instr->result, instr->arg1, instr->arg2);
         break;
