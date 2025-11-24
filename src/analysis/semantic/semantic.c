@@ -447,7 +447,11 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
 
     case EXPR_CALL:
     {
-        if (string_equal(expr->data.call.name, "concat") && expr->data.call.args.size == 2)
+        if (string_equal(expr->data.call.name, "input") && expr->data.call.args.size == 0)
+        {
+            return TYPE_INT;
+        }
+        else if (string_equal(expr->data.call.name, "concat") && expr->data.call.args.size == 2)
         {
             DataType arg1_type = type_check_expression(analyzer, (Expr *)array_get(&expr->data.call.args, 0));
             DataType arg2_type = type_check_expression(analyzer, (Expr *)array_get(&expr->data.call.args, 1));

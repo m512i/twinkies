@@ -236,6 +236,14 @@ IROperand *ir_generate_expression_impl(IRFunction *ir_func, Expr *expr, Semantic
                 printf("[DEBUG] ir_generate: String length/compare function call %s, setting temp_%d to TYPE_INT\n", expr->data.call.name, result->data.temp_id);
             }
         }
+        else if (string_equal(expr->data.call.name, "input"))
+        {
+            result->data_type = TYPE_INT;
+            if (debug_enabled)
+            {
+                printf("[DEBUG] ir_generate: Input function call, setting temp_%d to TYPE_INT\n", result->data.temp_id);
+            }
+        }
         else if (string_equal(expr->data.call.name, "test_function"))
         {
             result->data_type = TYPE_DOUBLE;

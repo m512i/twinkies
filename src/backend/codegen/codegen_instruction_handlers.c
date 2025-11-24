@@ -221,6 +221,24 @@ void codegen_handle_param(CodeGenerator *generator, IRInstruction *instr)
 
 void codegen_handle_call(CodeGenerator *generator, IRInstruction *instr)
 {
+    const char *func_name = instr->label;
+    
+    if (strcmp(func_name, "input") == 0)
+    {
+        codegen_core_write_indent(generator);
+        if (instr->result)
+        {
+            codegen_c_writer_write_operand(generator, instr->result);
+            fprintf(generator->output_file, " = 0;\n");
+            codegen_core_write_indent(generator);
+            fprintf(generator->output_file, "scanf(\"%%ld\", &");
+            codegen_c_writer_write_operand(generator, instr->result);
+            fprintf(generator->output_file, ");\n");
+        }
+        generator->param_count = 0;
+        return;
+    }
+    
     codegen_core_write_indent(generator);
     if (instr->result)
     {
@@ -228,8 +246,6 @@ void codegen_handle_call(CodeGenerator *generator, IRInstruction *instr)
         fprintf(generator->output_file, " = ");
     }
 
-    const char *func_name = instr->label;
-    
     if (codegen_is_ffi_function(generator, func_name))
     {
         fprintf(generator->output_file, "ffi_%s(", func_name);
