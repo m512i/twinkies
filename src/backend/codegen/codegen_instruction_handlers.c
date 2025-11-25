@@ -177,15 +177,63 @@ void codegen_handle_move(CodeGenerator *generator, IRInstruction *instr)
     fprintf(generator->output_file, ";\n");
 }
 
+static void codegen_write_null_operand(CodeGenerator *generator, IROperand *operand, DataType context_type)
+{
+    if (operand && operand->type == IR_OP_NULL)
+    {
+        if (context_type == TYPE_INT)
+        {
+            fprintf(generator->output_file, "0");
+        }
+        else if (context_type == TYPE_BOOL)
+        {
+            fprintf(generator->output_file, "false");
+        }
+        else if (context_type == TYPE_FLOAT)
+        {
+            fprintf(generator->output_file, "0.0f");
+        }
+        else if (context_type == TYPE_DOUBLE)
+        {
+            fprintf(generator->output_file, "0.0");
+        }
+        else if (context_type == TYPE_STRING)
+        {
+            fprintf(generator->output_file, "NULL");
+        }
+        else
+        {
+            fprintf(generator->output_file, "0");
+        }
+    }
+    else
+    {
+        codegen_c_writer_write_operand(generator, operand);
+    }
+}
+
 void codegen_handle_arithmetic(CodeGenerator *generator, IRInstruction *instr)
 {
     codegen_core_write_indent(generator);
     codegen_c_writer_write_operand(generator, instr->result);
     fprintf(generator->output_file, " = ");
+    DataType context_type = instr->result ? instr->result->data_type : TYPE_INT;
+    if (context_type == TYPE_NULL && instr->arg1)
+    {
+        context_type = instr->arg1->data_type;
+    }
+    if (context_type == TYPE_NULL && instr->arg2)
+    {
+        context_type = instr->arg2->data_type;
+    }
+    if (context_type == TYPE_NULL)
+    {
+        context_type = TYPE_INT;
+    }
 
-    codegen_c_writer_write_operand(generator, instr->arg1);
+    codegen_write_null_operand(generator, instr->arg1, context_type);
     fprintf(generator->output_file, " %s ", ir_opcode_to_string(instr->opcode));
-    codegen_c_writer_write_operand(generator, instr->arg2);
+    codegen_write_null_operand(generator, instr->arg2, context_type);
     fprintf(generator->output_file, ";\n");
 }
 
@@ -195,7 +243,17 @@ void codegen_handle_unary_arithmetic(CodeGenerator *generator, IRInstruction *in
     codegen_c_writer_write_operand(generator, instr->result);
     fprintf(generator->output_file, " = %s",
             instr->opcode == IR_NEG ? "-" : "!");
-    codegen_c_writer_write_operand(generator, instr->arg1);
+    DataType context_type = instr->result ? instr->result->data_type : TYPE_INT;
+    if (context_type == TYPE_NULL && instr->arg1)
+    {
+        context_type = instr->arg1->data_type;
+    }
+    if (context_type == TYPE_NULL)
+    {
+        context_type = TYPE_INT;
+    }
+    
+    codegen_write_null_operand(generator, instr->arg1, context_type);
     fprintf(generator->output_file, ";\n");
 }
 
@@ -205,9 +263,28 @@ void codegen_handle_comparison(CodeGenerator *generator, IRInstruction *instr)
     codegen_c_writer_write_operand(generator, instr->result);
     fprintf(generator->output_file, " = ");
 
-    codegen_c_writer_write_operand(generator, instr->arg1);
-    fprintf(generator->output_file, " %s ", ir_opcode_to_string(instr->opcode));
-    codegen_c_writer_write_operand(generator, instr->arg2);
+    DataType context_type = TYPE_INT;
+    if (instr->arg1 && instr->arg1->data_type != TYPE_NULL)
+    {
+        context_type = instr->arg1->data_type;
+    }
+    else if (instr->arg2 && instr->arg2->data_type != TYPE_NULL)
+    {
+        context_type = instr->arg2->data_type;
+    }
+    
+    if (context_type == TYPE_STRING)
+    {
+        codegen_c_writer_write_operand(generator, instr->arg1);
+        fprintf(generator->output_file, " %s ", ir_opcode_to_string(instr->opcode));
+        codegen_c_writer_write_operand(generator, instr->arg2);
+    }
+    else
+    {
+        codegen_write_null_operand(generator, instr->arg1, context_type);
+        fprintf(generator->output_file, " %s ", ir_opcode_to_string(instr->opcode));
+        codegen_write_null_operand(generator, instr->arg2, context_type);
+    }
     fprintf(generator->output_file, ";\n");
 }
 
@@ -382,7 +459,6 @@ void codegen_handle_array_decl(CodeGenerator *generator, IRInstruction *instr)
 {
     (void)generator;
     (void)instr;
-    // Array declarations are handled in function header generation
 }
 
 void codegen_handle_array_init(CodeGenerator *generator, IRInstruction *instr)
@@ -404,7 +480,6 @@ void codegen_handle_var_decl(CodeGenerator *generator, IRInstruction *instr)
 {
     (void)generator;
     (void)instr;
-    // Variable declarations are handled in function header generation
 }
 
 void codegen_handle_inline_asm(CodeGenerator *generator, IRInstruction *instr)

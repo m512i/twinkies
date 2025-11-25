@@ -74,23 +74,107 @@ IROperand *ir_generate_expression_impl(IRFunction *ir_func, Expr *expr, Semantic
 
     case EXPR_BINARY:
     {
-        DataType left_type = TYPE_NULL;
-        DataType right_type = TYPE_NULL;
-        if (expr->data.binary.left->type == EXPR_NULL_LITERAL)
+        DataType semantic_left_type = type_check_expression(analyzer, expr->data.binary.left);
+        DataType semantic_right_type = type_check_expression(analyzer, expr->data.binary.right);
+        DataType semantic_result_type = type_check_expression(analyzer, expr);
+        
+        bool is_string_concat = false;
+        if (expr->data.binary.operator== TOKEN_PLUS)
         {
-            right_type = type_check_expression(analyzer, expr->data.binary.right);
+            if (semantic_result_type == TYPE_STRING || 
+                expected_type == TYPE_STRING)
+            {
+                is_string_concat = true;
+            }
+            else if (semantic_left_type == TYPE_STRING || semantic_right_type == TYPE_STRING)
+            {
+                if (!(semantic_left_type == TYPE_NULL && semantic_right_type == TYPE_NULL))
+                {
+                    is_string_concat = true;
+                }
+            }
         }
-        if (expr->data.binary.right->type == EXPR_NULL_LITERAL)
+        
+        DataType left_expected_type = TYPE_NULL;
+        DataType right_expected_type = TYPE_NULL;
+        
+        if (is_string_concat)
         {
-            left_type = type_check_expression(analyzer, expr->data.binary.left);
+            left_expected_type = TYPE_STRING;
+            right_expected_type = TYPE_STRING;
         }
-        IROperand *left = ir_generate_expression_impl(ir_func, expr->data.binary.left, analyzer, right_type);
-        IROperand *right = ir_generate_expression_impl(ir_func, expr->data.binary.right, analyzer, left_type);
+        else
+        {   
+            bool left_is_null = (expr->data.binary.left->type == EXPR_NULL_LITERAL);
+            bool right_is_null = (expr->data.binary.right->type == EXPR_NULL_LITERAL);
+            
+            if (left_is_null && right_is_null)
+            {
+                if (expected_type != TYPE_NULL && is_numeric_type(expected_type))
+                {
+                    left_expected_type = expected_type;
+                    right_expected_type = expected_type;
+                }
+                else
+                {
+                    left_expected_type = TYPE_INT;
+                    right_expected_type = TYPE_INT;
+                }
+            }
+            else if (left_is_null)
+            {
+                if (expected_type != TYPE_NULL && is_numeric_type(expected_type))
+                {
+                    left_expected_type = expected_type;
+                }
+                else
+                {
+                    left_expected_type = semantic_right_type;
+                    if (left_expected_type == TYPE_NULL)
+                    {
+                        left_expected_type = (expected_type != TYPE_NULL) ? expected_type : TYPE_INT;
+                    }
+                }
+                right_expected_type = semantic_right_type;
+            }
+            else if (right_is_null)
+            {
+                if (expected_type != TYPE_NULL && is_numeric_type(expected_type))
+                {
+                    right_expected_type = expected_type;
+                }
+                else
+                {
+                    right_expected_type = semantic_left_type;
+                    if (right_expected_type == TYPE_NULL)
+                    {
+                        right_expected_type = (expected_type != TYPE_NULL) ? expected_type : TYPE_INT;
+                    }
+                }
+                left_expected_type = semantic_left_type;
+            }
+            else
+            {
+                left_expected_type = semantic_left_type;
+                right_expected_type = semantic_right_type;
+            }
+        }
+        
+        IROperand *left = ir_generate_expression_impl(ir_func, expr->data.binary.left, analyzer, left_expected_type);
+        IROperand *right = ir_generate_expression_impl(ir_func, expr->data.binary.right, analyzer, right_expected_type);
 
-        if (expr->data.binary.operator== TOKEN_PLUS && left && right && left->data_type == TYPE_STRING && right->data_type == TYPE_STRING)
+        if (is_string_concat && left && right)
         {
             IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
             result->data_type = TYPE_STRING;
+            if (left->data_type != TYPE_STRING)
+            {
+                left->data_type = TYPE_STRING;
+            }
+            if (right->data_type != TYPE_STRING)
+            {
+                right->data_type = TYPE_STRING;
+            }
             if (debug_enabled)
             {
                 printf("[DEBUG] ir_generate: String concatenation, setting temp_%d to TYPE_STRING\n", result->data.temp_id);
@@ -154,7 +238,11 @@ IROperand *ir_generate_expression_impl(IRFunction *ir_func, Expr *expr, Semantic
 
         if (opcode == IR_ADD || opcode == IR_SUB || opcode == IR_MUL || opcode == IR_DIV || opcode == IR_MOD)
         {
-            if (left->data_type == TYPE_DOUBLE || right->data_type == TYPE_DOUBLE)
+            if (expected_type == TYPE_FLOAT || expected_type == TYPE_DOUBLE)
+            {
+                result->data_type = expected_type;
+            }
+            else if (left->data_type == TYPE_DOUBLE || right->data_type == TYPE_DOUBLE)
             {
                 result->data_type = TYPE_DOUBLE;
             }
@@ -195,6 +283,22 @@ IROperand *ir_generate_expression_impl(IRFunction *ir_func, Expr *expr, Semantic
         }
 
         IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
+        if (expected_type == TYPE_FLOAT || expected_type == TYPE_DOUBLE || expected_type == TYPE_INT)
+        {
+            result->data_type = expected_type;
+        }
+        else if (operand->data_type == TYPE_DOUBLE)
+        {
+            result->data_type = TYPE_DOUBLE;
+        }
+        else if (operand->data_type == TYPE_FLOAT)
+        {
+            result->data_type = TYPE_FLOAT;
+        }
+        else
+        {
+            result->data_type = operand->data_type;
+        }
         IRInstruction *instr = ir_instruction_unary(opcode, result, operand);
         ir_function_add_instruction(ir_func, instr);
         return result;
@@ -257,12 +361,77 @@ IROperand *ir_generate_expression_impl(IRFunction *ir_func, Expr *expr, Semantic
             }
         }
 
+        Symbol *func_symbol = scope_resolve(analyzer, expr->data.call.name);
+        DataType *param_types = NULL;
+        size_t param_count = 0;
+        
+        if (func_symbol && func_symbol->type == SYMBOL_FUNCTION && 
+            func_symbol->data.function.params.size > 0)
+        {
+            param_count = func_symbol->data.function.params.size;
+            param_types = safe_malloc(sizeof(DataType) * param_count);
+            for (size_t i = 0; i < param_count; i++)
+            {
+                Parameter *param = (Parameter *)array_get(&func_symbol->data.function.params, i);
+                param_types[i] = param->type;
+            }
+        }
+        else
+        {
+            if (string_equal(expr->data.call.name, "concat") || 
+                string_equal(expr->data.call.name, "__tl_concat"))
+            {
+                param_count = 2;
+                param_types = safe_malloc(sizeof(DataType) * param_count);
+                param_types[0] = TYPE_STRING;
+                param_types[1] = TYPE_STRING;
+            }
+            else if (string_equal(expr->data.call.name, "strlen") || 
+                     string_equal(expr->data.call.name, "__tl_strlen"))
+            {
+                param_count = 1;
+                param_types = safe_malloc(sizeof(DataType) * param_count);
+                param_types[0] = TYPE_STRING;
+            }
+            else if (string_equal(expr->data.call.name, "substr") || 
+                     string_equal(expr->data.call.name, "__tl_substr"))
+            {
+                param_count = 3;
+                param_types = safe_malloc(sizeof(DataType) * param_count);
+                param_types[0] = TYPE_STRING;
+                param_types[1] = TYPE_INT;
+                param_types[2] = TYPE_INT;
+            }
+            else if (string_equal(expr->data.call.name, "strcmp") || 
+                     string_equal(expr->data.call.name, "__tl_strcmp"))
+            {
+                param_count = 2;
+                param_types = safe_malloc(sizeof(DataType) * param_count);
+                param_types[0] = TYPE_STRING;
+                param_types[1] = TYPE_STRING;
+            }
+            else if (string_equal(expr->data.call.name, "char_at") || 
+                     string_equal(expr->data.call.name, "__tl_char_at"))
+            {
+                param_count = 2;
+                param_types = safe_malloc(sizeof(DataType) * param_count);
+                param_types[0] = TYPE_STRING;
+                param_types[1] = TYPE_INT;
+            }
+        }
+
         for (size_t i = 0; i < expr->data.call.args.size; i++)
         {
             Expr *arg_expr = (Expr *)array_get(&expr->data.call.args, i);
-            IROperand *arg = ir_generate_expression_impl(ir_func, arg_expr, analyzer, TYPE_NULL);
+            DataType param_expected_type = (param_types && i < param_count) ? param_types[i] : TYPE_NULL;
+            IROperand *arg = ir_generate_expression_impl(ir_func, arg_expr, analyzer, param_expected_type);
             IRInstruction *param = ir_instruction_param(arg);
             ir_function_add_instruction(ir_func, param);
+        }
+        
+        if (param_types)
+        {
+            safe_free(param_types);
         }
 
         IRInstruction *call = ir_instruction_call(result, expr->data.call.name);
