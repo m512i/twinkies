@@ -5,6 +5,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#ifdef _WIN32
+#include <windows.h>
+#include <io.h>
+#else
+#include <unistd.h>
+#include <sys/stat.h>
+#endif
 
 extern bool debug_enabled;
 
@@ -42,6 +49,7 @@ void codegen_c_writer_write_header(CodeGenerator *generator)
     fprintf(generator->output_file, "#include <stdbool.h>\n");
     fprintf(generator->output_file, "#include <inttypes.h>\n");
     fprintf(generator->output_file, "#include <string.h>\n");
+    fprintf(generator->output_file, "#include \"../include/runtime/runtime.h\"\n");
     
     if (generator->program && generator->program->ffi_functions.size > 0)
     {
@@ -51,8 +59,6 @@ void codegen_c_writer_write_header(CodeGenerator *generator)
     }
     
     fprintf(generator->output_file, "\n");
-
-    codegen_c_writer_write_runtime_functions(generator);
 
     codegen_ffi_write_declarations(generator, generator->program);
     codegen_ffi_write_loading(generator, generator->program);
@@ -91,63 +97,9 @@ void codegen_c_writer_write_header(CodeGenerator *generator)
 
 void codegen_c_writer_write_runtime_functions(CodeGenerator *generator)
 {
-    fprintf(generator->output_file, "char* __tl_concat(const char* a, const char* b) {\n");
-    fprintf(generator->output_file, "    if (!a) a = \"\";\n");
-    fprintf(generator->output_file, "    if (!b) b = \"\";\n");
-    fprintf(generator->output_file, "    size_t len_a = strlen(a);\n");
-    fprintf(generator->output_file, "    size_t len_b = strlen(b);\n");
-    fprintf(generator->output_file, "    char* result = (char*)malloc(len_a + len_b + 1);\n");
-    fprintf(generator->output_file, "    if (!result) { fprintf(stderr, \"Out of memory\\n\"); exit(1); }\n");
-    fprintf(generator->output_file, "    strcpy(result, a);\n");
-    fprintf(generator->output_file, "    strcat(result, b);\n");
-    fprintf(generator->output_file, "    return result;\n");
-    fprintf(generator->output_file, "}\n\n");
-
-    fprintf(generator->output_file, "int64_t __tl_strlen(const char* str) {\n");
-    fprintf(generator->output_file, "    if (!str) return 0;\n");
-    fprintf(generator->output_file, "    return (int64_t)strlen(str);\n");
-    fprintf(generator->output_file, "}\n\n");
-
-    fprintf(generator->output_file, "char* __tl_substr(const char* str, int64_t start, int64_t len) {\n");
-    fprintf(generator->output_file, "    if (!str) return strdup(\"\");\n");
-    fprintf(generator->output_file, "    size_t str_len = strlen(str);\n");
-    fprintf(generator->output_file, "    if (start < 0 || start >= str_len || len < 0) {\n");
-    fprintf(generator->output_file, "        return strdup(\"\");\n");
-    fprintf(generator->output_file, "    }\n");
-    fprintf(generator->output_file, "    if (start + len > str_len) {\n");
-    fprintf(generator->output_file, "        len = str_len - start;\n");
-    fprintf(generator->output_file, "    }\n");
-    fprintf(generator->output_file, "    char* result = (char*)malloc(len + 1);\n");
-    fprintf(generator->output_file, "    if (!result) { fprintf(stderr, \"Out of memory\\n\"); exit(1); }\n");
-    fprintf(generator->output_file, "    strncpy(result, str + start, len);\n");
-    fprintf(generator->output_file, "    result[len] = '\\0';\n");
-    fprintf(generator->output_file, "    return result;\n");
-    fprintf(generator->output_file, "}\n\n");
-
-    fprintf(generator->output_file, "int64_t __tl_strcmp(const char* a, const char* b) {\n");
-    fprintf(generator->output_file, "    if (!a && !b) return 0;\n");
-    fprintf(generator->output_file, "    if (!a) return -1;\n");
-    fprintf(generator->output_file, "    if (!b) return 1;\n");
-    fprintf(generator->output_file, "    // Unix-style implementation that returns actual character difference\n");
-    fprintf(generator->output_file, "    while (*a != '\\0' && *a == *b) {\n");
-    fprintf(generator->output_file, "        a++;\n");
-    fprintf(generator->output_file, "        b++;\n");
-    fprintf(generator->output_file, "    }\n");
-    fprintf(generator->output_file, "    return (int64_t)((unsigned char)*a - (unsigned char)*b);\n");
-    fprintf(generator->output_file, "}\n\n");
-
-    fprintf(generator->output_file, "char* __tl_char_at(const char* str, int64_t index) {\n");
-    fprintf(generator->output_file, "    if (!str) return strdup(\"\");\n");
-    fprintf(generator->output_file, "    size_t len = strlen(str);\n");
-    fprintf(generator->output_file, "    if (index < 0 || index >= len) {\n");
-    fprintf(generator->output_file, "        return strdup(\"\");\n");
-    fprintf(generator->output_file, "    }\n");
-    fprintf(generator->output_file, "    char* result = (char*)malloc(2);\n");
-    fprintf(generator->output_file, "    if (!result) { fprintf(stderr, \"Out of memory\\n\"); exit(1); }\n");
-    fprintf(generator->output_file, "    result[0] = str[index];\n");
-    fprintf(generator->output_file, "    result[1] = '\\0';\n");
-    fprintf(generator->output_file, "    return result;\n");
-    fprintf(generator->output_file, "}\n\n");
+    // Runtime functions are now in runtime/runtime.c
+    // This function is kept for compatibility but does nothing
+    (void)generator;
 }
 
 void codegen_c_writer_write_function_header(CodeGenerator *generator, IRFunction *func)
