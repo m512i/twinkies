@@ -13,7 +13,7 @@ More diagrams in the `Twinkies-Flow` folder.
 
 ### PHASE 2
 <p align="center">
-  <img src="Twinkies-Flow/p1.png" width="440" style="margin: 8px;">
+  <img src="Twinkies-Flow/p2.png" width="440" style="margin: 8px;">
 </p>
 
 ### PHASE 3
