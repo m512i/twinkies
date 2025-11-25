@@ -1,5 +1,31 @@
 #include "backend/ir/iroperands.h"
 
+static void escape_string_for_c(const char *input, FILE *output) {
+    while (*input) {
+        switch (*input) {
+            case '\n':
+                fprintf(output, "\\n");
+                break;
+            case '\t':
+                fprintf(output, "\\t");
+                break;
+            case '\r':
+                fprintf(output, "\\r");
+                break;
+            case '\\':
+                fprintf(output, "\\\\");
+                break;
+            case '"':
+                fprintf(output, "\\\"");
+                break;
+            default:
+                fputc(*input, output);
+                break;
+        }
+        input++;
+    }
+}
+
 extern bool debug_enabled;
 
 IROperand *ir_operand_temp(int temp_id)

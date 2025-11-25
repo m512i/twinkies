@@ -414,10 +414,9 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
         case TOKEN_OR:
             return TYPE_BOOL;
         case TOKEN_PLUS:
-            if (left_type == TYPE_STRING || right_type == TYPE_STRING)
+            if (left_type == TYPE_STRING && right_type == TYPE_STRING)
                 return TYPE_STRING;
-            if (left_type == TYPE_NULL && right_type == TYPE_NULL)
-                return TYPE_NULL;
+            // else fallthrough
         default:
             return TYPE_INT;
         }
@@ -448,11 +447,7 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
 
     case EXPR_CALL:
     {
-        if (string_equal(expr->data.call.name, "input") && expr->data.call.args.size == 0)
-        {
-            return TYPE_INT;
-        }
-        else if (string_equal(expr->data.call.name, "concat") && expr->data.call.args.size == 2)
+        if (string_equal(expr->data.call.name, "concat") && expr->data.call.args.size == 2)
         {
             DataType arg1_type = type_check_expression(analyzer, (Expr *)array_get(&expr->data.call.args, 0));
             DataType arg2_type = type_check_expression(analyzer, (Expr *)array_get(&expr->data.call.args, 1));
@@ -576,14 +571,6 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
             return TYPE_VOID;
         }
 
-        if (array_type == TYPE_NULL)
-        {
-            semantic_warning_with_suggestion(analyzer, 
-                "Array indexing with null pointer may cause undefined behavior",
-                "Using null in pointer arithmetic or dereference is undefined behavior in C. Consider checking for null before indexing.",
-                expr->line, expr->column);
-        }
-
         if (array_type == TYPE_STRING)
         {
             if (index_type != TYPE_INT)
@@ -619,14 +606,6 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
         if (string_type == TYPE_VOID || index_type == TYPE_VOID)
         {
             return TYPE_VOID;
-        }
-
-        if (string_type == TYPE_NULL)
-        {
-            semantic_warning_with_suggestion(analyzer,
-                "String indexing with null pointer may cause undefined behavior",
-                "Using null in pointer arithmetic or dereference is undefined behavior in C. Consider checking for null before indexing.",
-                expr->line, expr->column);
         }
 
         if (string_type != TYPE_STRING)
@@ -774,7 +753,7 @@ static DataType type_check_statement_in_loop(SemanticAnalyzer *analyzer, Stmt *s
     case STMT_IF:
     {
         DataType condition_type = type_check_expression(analyzer, stmt->data.if_stmt.condition);
-        if (condition_type != TYPE_VOID && condition_type != TYPE_BOOL && condition_type != TYPE_INT && condition_type != TYPE_NULL)
+        if (condition_type != TYPE_VOID && condition_type != TYPE_BOOL && condition_type != TYPE_INT)
         {
             semantic_error(analyzer, "If condition must be boolean or integer", stmt->line, stmt->column);
         }
@@ -789,7 +768,7 @@ static DataType type_check_statement_in_loop(SemanticAnalyzer *analyzer, Stmt *s
     case STMT_WHILE:
     {
         DataType condition_type = type_check_expression(analyzer, stmt->data.while_stmt.condition);
-        if (condition_type != TYPE_VOID && condition_type != TYPE_BOOL && condition_type != TYPE_INT && condition_type != TYPE_NULL)
+        if (condition_type != TYPE_VOID && condition_type != TYPE_BOOL && condition_type != TYPE_INT)
         {
             semantic_error(analyzer, "While condition must be boolean or integer", stmt->line, stmt->column);
         }
@@ -930,11 +909,7 @@ bool type_check_binary(SemanticAnalyzer *analyzer, TLTokenType operator, DataTyp
     switch (operator)
     {
     case TOKEN_PLUS:
-        if ((is_numeric_type(left_type) && (is_numeric_type(right_type) || right_type == TYPE_NULL)) ||
-            (is_numeric_type(right_type) && (is_numeric_type(left_type) || left_type == TYPE_NULL)) ||
-            (left_type == TYPE_STRING && (right_type == TYPE_STRING || right_type == TYPE_NULL)) ||
-            (right_type == TYPE_STRING && (left_type == TYPE_STRING || left_type == TYPE_NULL)) ||
-            (left_type == TYPE_NULL && right_type == TYPE_NULL))
+        if ((is_numeric_type(left_type) && is_numeric_type(right_type)) || (left_type == TYPE_STRING && right_type == TYPE_STRING))
         {
             return true;
         }
@@ -944,13 +919,12 @@ bool type_check_binary(SemanticAnalyzer *analyzer, TLTokenType operator, DataTyp
     case TOKEN_STAR:
     case TOKEN_SLASH:
     case TOKEN_PERCENT:
-        if ((is_numeric_type(left_type) || left_type == TYPE_NULL) && 
-            (is_numeric_type(right_type) || right_type == TYPE_NULL))
+        if (!is_numeric_type(left_type) || !is_numeric_type(right_type))
         {
-            return true;
+            semantic_error(analyzer, "Arithmetic operators require numeric operands", line, column);
+            return false;
         }
-        semantic_error(analyzer, "Arithmetic operators require numeric operands", line, column);
-        return false;
+        return true;
 
     case TOKEN_EQ:
     case TOKEN_NE:
@@ -965,23 +939,21 @@ bool type_check_binary(SemanticAnalyzer *analyzer, TLTokenType operator, DataTyp
     case TOKEN_LE:
     case TOKEN_GT:
     case TOKEN_GE:
-        if ((is_numeric_type(left_type) || left_type == TYPE_NULL) && 
-            (is_numeric_type(right_type) || right_type == TYPE_NULL))
+        if (!is_numeric_type(left_type) || !is_numeric_type(right_type))
         {
-            return true;
+            semantic_error(analyzer, "Comparison operators require numeric operands", line, column);
+            return false;
         }
-        semantic_error(analyzer, "Comparison operators require numeric operands", line, column);
-        return false;
+        return true;
 
     case TOKEN_AND:
     case TOKEN_OR:
-        if ((is_boolean_type(left_type) || left_type == TYPE_NULL) && 
-            (is_boolean_type(right_type) || right_type == TYPE_NULL))
+        if (!is_boolean_type(left_type) || !is_boolean_type(right_type))
         {
-            return true;
+            semantic_error(analyzer, "Logical operators require boolean operands", line, column);
+            return false;
         }
-        semantic_error(analyzer, "Logical operators require boolean operands", line, column);
-        return false;
+        return true;
 
     default:
         return false;
@@ -993,20 +965,20 @@ bool type_check_unary(SemanticAnalyzer *analyzer, TLTokenType operator, DataType
     switch (operator)
     {
     case TOKEN_MINUS:
-        if (is_numeric_type(operand_type) || operand_type == TYPE_NULL)
+        if (!is_numeric_type(operand_type))
         {
-            return true;
+            semantic_error(analyzer, "Unary minus requires numeric operand", line, column);
+            return false;
         }
-        semantic_error(analyzer, "Unary minus requires numeric operand", line, column);
-        return false;
+        return true;
 
     case TOKEN_BANG:
-        if (is_boolean_type(operand_type) || operand_type == TYPE_NULL)
+        if (!is_boolean_type(operand_type))
         {
-            return true;
+            semantic_error(analyzer, "Logical not requires boolean operand", line, column);
+            return false;
         }
-        semantic_error(analyzer, "Logical not requires boolean operand", line, column);
-        return false;
+        return true;
 
     default:
         return false;

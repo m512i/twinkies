@@ -70,14 +70,8 @@ void ir_generate_statement_impl(IRFunction *ir_func, Stmt *stmt, SemanticAnalyze
         break;
     case STMT_ASSIGNMENT:
     {
-        Symbol *symbol = scope_resolve(analyzer, stmt->data.assignment.name);
-        DataType expected_type = symbol ? symbol->data_type : TYPE_NULL;
-        IROperand *value = ir_generate_expression_impl(ir_func, stmt->data.assignment.value, analyzer, expected_type);
+        IROperand *value = ir_generate_expression_impl(ir_func, stmt->data.assignment.value, analyzer, TYPE_NULL);
         IROperand *var = ir_operand_var(stmt->data.assignment.name);
-        if (symbol)
-        {
-            var->data_type = symbol->data_type;
-        }
         IRInstruction *move = ir_instruction_move(var, value);
         ir_function_add_instruction(ir_func, move);
         break;

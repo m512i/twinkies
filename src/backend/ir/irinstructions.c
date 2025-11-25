@@ -396,24 +396,6 @@ void ir_instruction_print(const IRInstruction *instr)
         printf("PRINT ");
         ir_operand_print(instr->arg1);
         break;
-    case IR_PRINT_MULTIPLE:
-        printf("PRINT_MULTIPLE");
-        if (instr->args)
-        {
-            for (size_t i = 0; i < instr->args->size; i++)
-            {
-                printf(" ");
-                ir_operand_print((IROperand *)array_get(instr->args, i));
-            }
-        }
-        break;
-    case IR_INLINE_ASM:
-        printf("INLINE_ASM");
-        if (instr->asm_code)
-        {
-            printf(" \"%s\"", instr->asm_code);
-        }
-        break;
     case IR_ARRAY_LOAD:
         ir_operand_print(instr->result);
         printf(" = ");

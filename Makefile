@@ -1,6 +1,6 @@
 # Compiler for twink lang
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -g -Iinclude -Iinclude/backend/codegen -Iinclude/runtime
+CFLAGS = -Wall -Wextra -std=c99 -g -Iinclude -Iinclude/backend/codegen
 LDFLAGS = 
 
 SRCDIR = src

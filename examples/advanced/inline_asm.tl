@@ -184,27 +184,14 @@ func string_length_asm(str: int) -> int {
 }
 
 // Example 11: Get CPU name using CPUID
-// CPUID is an x86 instruction that queries CPU information
-// The "leaf" number in EAX tells CPUID what information to return
-// 
-// Extended CPUID leaves (0x80000000+):
-// - 0x80000000: Returns maximum extended leaf number (check if >= 0x80000004)
-// - 0x80000002: Returns first 16 bytes of CPU brand string (EAX, EBX, ECX, EDX)
-// - 0x80000003: Returns next 16 bytes of CPU brand string (EAX, EBX, ECX, EDX)
-// - 0x80000004: Returns last 16 bytes of CPU brand string (EAX, EBX, ECX, EDX)
-// 
-// Together, these three leaves return 48 bytes total containing the CPU name
-// as ASCII characters (e.g., "AMD EPYC 7543P" or "Intel Core i7-9700K")
-// The name is stored sequentially across all 12 registers (4 registers × 3 leaves)
-// 
-// NOTE: These leaf values are STANDARDIZED and work on ALL modern x86/x86-64 CPUs
-// (both Intel and AMD). This is part of the extended CPUID feature set that's
-// been supported since the early 2000s on all modern processors.
+// CPUID with EAX=0x80000002, 0x80000003, 0x80000004 returns the CPU brand string
+// Each call returns 16 bytes (4 registers × 4 bytes) for a total of 48 bytes
+// The CPU name is stored as ASCII characters across all 12 registers
 
 // Get all registers from CPUID leaf 0x80000002 (first 16 bytes of CPU name)
 func get_cpu_name_leaf1_eax() -> int {
     let eax: int;
-    let leaf: int = 0x80000002;
+    let leaf: int = 2147483650; // 0x80000002
     asm {
         "cpuid"
         : "=a" (eax)
@@ -216,7 +203,7 @@ func get_cpu_name_leaf1_eax() -> int {
 
 func get_cpu_name_leaf1_ebx() -> int {
     let ebx: int;
-    let leaf: int = 0x80000002;
+    let leaf: int = 2147483650; // 0x80000002
     asm {
         "cpuid"
         : "=b" (ebx)
@@ -228,7 +215,7 @@ func get_cpu_name_leaf1_ebx() -> int {
 
 func get_cpu_name_leaf1_ecx() -> int {
     let ecx: int;
-    let leaf: int = 0x80000002;
+    let leaf: int = 2147483650; // 0x80000002
     asm {
         "cpuid"
         : "=c" (ecx)
@@ -240,7 +227,7 @@ func get_cpu_name_leaf1_ecx() -> int {
 
 func get_cpu_name_leaf1_edx() -> int {
     let edx: int;
-    let leaf: int = 0x80000002;
+    let leaf: int = 2147483650; // 0x80000002
     asm {
         "cpuid"
         : "=d" (edx)
@@ -253,7 +240,7 @@ func get_cpu_name_leaf1_edx() -> int {
 // Get all registers from CPUID leaf 0x80000003 (second 16 bytes of CPU name)
 func get_cpu_name_leaf2_eax() -> int {
     let eax: int;
-    let leaf: int = 0x80000003;
+    let leaf: int = 2147483651; // 0x80000003
     asm {
         "cpuid"
         : "=a" (eax)
@@ -265,7 +252,7 @@ func get_cpu_name_leaf2_eax() -> int {
 
 func get_cpu_name_leaf2_ebx() -> int {
     let ebx: int;
-    let leaf: int = 0x80000003;
+    let leaf: int = 2147483651; // 0x80000003
     asm {
         "cpuid"
         : "=b" (ebx)
@@ -277,7 +264,7 @@ func get_cpu_name_leaf2_ebx() -> int {
 
 func get_cpu_name_leaf2_ecx() -> int {
     let ecx: int;
-    let leaf: int = 0x80000003;
+    let leaf: int = 2147483651; // 0x80000003
     asm {
         "cpuid"
         : "=c" (ecx)
@@ -289,7 +276,7 @@ func get_cpu_name_leaf2_ecx() -> int {
 
 func get_cpu_name_leaf2_edx() -> int {
     let edx: int;
-    let leaf: int = 0x80000003;
+    let leaf: int = 2147483651; // 0x80000003
     asm {
         "cpuid"
         : "=d" (edx)
@@ -302,7 +289,7 @@ func get_cpu_name_leaf2_edx() -> int {
 // Get all registers from CPUID leaf 0x80000004 (third 16 bytes of CPU name)
 func get_cpu_name_leaf3_eax() -> int {
     let eax: int;
-    let leaf: int = 0x80000004;
+    let leaf: int = 2147483652; // 0x80000004
     asm {
         "cpuid"
         : "=a" (eax)
@@ -314,7 +301,7 @@ func get_cpu_name_leaf3_eax() -> int {
 
 func get_cpu_name_leaf3_ebx() -> int {
     let ebx: int;
-    let leaf: int = 0x80000004;
+    let leaf: int = 2147483652; // 0x80000004
     asm {
         "cpuid"
         : "=b" (ebx)
@@ -326,7 +313,7 @@ func get_cpu_name_leaf3_ebx() -> int {
 
 func get_cpu_name_leaf3_ecx() -> int {
     let ecx: int;
-    let leaf: int = 0x80000004;
+    let leaf: int = 2147483652; // 0x80000004
     asm {
         "cpuid"
         : "=c" (ecx)
@@ -338,7 +325,7 @@ func get_cpu_name_leaf3_ecx() -> int {
 
 func get_cpu_name_leaf3_edx() -> int {
     let edx: int;
-    let leaf: int = 0x80000004;
+    let leaf: int = 2147483652; // 0x80000004
     asm {
         "cpuid"
         : "=d" (edx)

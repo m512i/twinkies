@@ -107,33 +107,6 @@ static void skip_whitespace(Lexer *lexer)
                 advance(lexer);
             }
         }
-        else if (c == '/' && peek_next(lexer) == '*')
-        {
-            int start_line = lexer->line;
-            int start_column = lexer->column;
-            advance(lexer); 
-            advance(lexer); 
-            
-            bool found_end = false;
-            while (!is_at_end(lexer))
-            {
-                if (peek(lexer) == '*' && peek_next(lexer) == '/')
-                {
-                    advance(lexer); 
-                    advance(lexer); 
-                    found_end = true;
-                    break;
-                }
-                advance(lexer);
-            }
-            
-            if (!found_end && lexer->error)
-            {
-                error_set(lexer->error, ERROR_LEXER, 
-                         "Unterminated block comment", 
-                         start_line, start_column);
-            }
-        }
         else
         {
             break;

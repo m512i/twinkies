@@ -53,4 +53,3 @@ dkms.conf
 
 # debug information files
 *.dwo
-compiler_paper.tex

@@ -495,14 +495,6 @@ void dump_stmt_json(Stmt *stmt, int indent)
         print_json_indent(indent + 2);
         printf("\"type\": \"%s\"", stmt->data.include.type == INCLUDE_SYSTEM ? "system" : "local");
         break;
-
-    case STMT_INLINE_ASM:
-        printf("inline_assembly\",\n");
-        print_json_indent(indent + 2);
-        printf("\"asm_code\": \"%s\",\n", stmt->data.inline_asm.asm_code ? stmt->data.inline_asm.asm_code : "");
-        print_json_indent(indent + 2);
-        printf("\"is_volatile\": %s", stmt->data.inline_asm.is_volatile ? "true" : "false");
-        break;
     }
 
     printf("\n");
