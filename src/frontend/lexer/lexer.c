@@ -107,6 +107,30 @@ static void skip_whitespace(Lexer *lexer)
                 advance(lexer);
             }
         }
+        else if (c == '/' && peek_next(lexer) == '*')
+        {
+            advance(lexer);
+            advance(lexer);
+            
+            while (!is_at_end(lexer))
+            {
+                if (peek(lexer) == '*' && peek_next(lexer) == '/')
+                {
+                    advance(lexer);
+                    advance(lexer);
+                    break;
+                }
+                advance(lexer);
+            }
+            
+            if (is_at_end(lexer) && lexer->error)
+            {
+                error_set_with_suggestion(lexer->error, ERROR_LEXER, 
+                    "Unterminated block comment", 
+                    "Add closing */ to terminate the block comment", 
+                    lexer->line, lexer->column);
+            }
+        }
         else
         {
             break;

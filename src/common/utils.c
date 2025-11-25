@@ -11,6 +11,91 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
+static bool compile_generated_c_code(const char *c_file_path);
+
+char *get_compiler_directory(void)
+{
+    static char compiler_dir[1024] = {0};
+    static bool initialized = false;
+    
+    if (initialized)
+    {
+        return compiler_dir;
+    }
+    
+#ifdef _WIN32
+    char exe_path[1024] = {0};
+    DWORD len = GetModuleFileNameA(NULL, exe_path, sizeof(exe_path) - 1);
+    if (len > 0 && len < sizeof(exe_path))
+    {
+        exe_path[len] = '\0';
+        char *last_backslash = strrchr(exe_path, '\\');
+        if (last_backslash)
+        {
+            size_t dir_len = last_backslash - exe_path;
+            strncpy(compiler_dir, exe_path, dir_len);
+            compiler_dir[dir_len] = '\\';
+            compiler_dir[dir_len + 1] = '\0';
+            size_t dir_str_len = strlen(compiler_dir);
+            if (dir_str_len >= 6)
+            {
+                if (strcmp(compiler_dir + dir_str_len - 6, "build\\") == 0)
+                {
+                    compiler_dir[dir_str_len - 6] = '\0';
+                }
+            }
+        }
+        else
+        {
+            strcpy(compiler_dir, ".\\");
+        }
+    }
+    else
+    {
+        strcpy(compiler_dir, ".\\");
+    }
+#else
+    char exe_path[1024] = {0};
+    ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+    if (len > 0)
+    {
+        exe_path[len] = '\0';
+        char *last_slash = strrchr(exe_path, '/');
+        if (last_slash)
+        {
+            size_t dir_len = last_slash - exe_path + 1;
+            strncpy(compiler_dir, exe_path, dir_len);
+            compiler_dir[dir_len] = '\0';
+            
+            size_t dir_str_len = strlen(compiler_dir);
+            if (dir_str_len >= 6)  
+            {
+                if (strcmp(compiler_dir + dir_str_len - 6, "build/") == 0)
+                {
+                    compiler_dir[dir_str_len - 6] = '\0';
+                }
+            }
+        }
+        else
+        {
+            strcpy(compiler_dir, "./");
+        }
+    }
+    else
+    {
+        strcpy(compiler_dir, "./");
+    }
+#endif
+    
+    initialized = true;
+    return compiler_dir;
+}
 
 char *read_file(const char *filename)
 {
@@ -494,6 +579,14 @@ void dump_stmt_json(Stmt *stmt, int indent)
         printf("\"path\": \"%s\",\n", stmt->data.include.path);
         print_json_indent(indent + 2);
         printf("\"type\": \"%s\"", stmt->data.include.type == INCLUDE_SYSTEM ? "system" : "local");
+        break;
+
+    case STMT_INLINE_ASM:
+        printf("inline_assembly\",\n");
+        print_json_indent(indent + 2);
+        printf("\"asm_code\": \"%s\",\n", stmt->data.inline_asm.asm_code ? stmt->data.inline_asm.asm_code : "");
+        print_json_indent(indent + 2);
+        printf("\"is_volatile\": %s", stmt->data.inline_asm.is_volatile ? "true" : "false");
         break;
     }
 
@@ -1179,6 +1272,17 @@ bool compile_file(const char *input_filename, const char *output_filename, bool 
         return false;
     }
 
+    if (!assembly_output && success)
+    {
+        if (!compile_generated_c_code(output_filename))
+        {
+            error_context_add_error(error_context, ERROR_CODEGEN, SEVERITY_ERROR,
+                                    "Failed to compile generated C code with gcc",
+                                    "Check that gcc is available and runtime files are accessible", 0, 0);
+            error_context_print_all(error_context);
+        }
+    }
+
     error_context_destroy(error_context);
     if (ir_program)
         ir_program_destroy(ir_program);
@@ -1574,6 +1678,158 @@ bool compile_module_system(const char *input_filename, const char *output_filena
     printf("Successfully compiled '%s' to '%s' with module system\n", input_filename, output_filename);
     fflush(stdout);
 
+    return true;
+}
+
+static bool compile_generated_c_code(const char *c_file_path)
+{
+    const char *gcc_path = "D:\\w64devkit\\bin\\gcc.exe"; // im lazy just put your gcc path here
+    
+    char c_file_dir[1024] = {0};
+    char c_file_name[512] = {0};
+    char output_exe[1024] = {0};
+    char abs_c_file_path[1024] = {0};
+    
+    strncpy(abs_c_file_path, c_file_path, sizeof(abs_c_file_path) - 1);
+    
+    const char *last_slash = strrchr(c_file_path, '/');
+    const char *last_backslash = strrchr(c_file_path, '\\');
+    const char *last_sep = (last_slash > last_backslash) ? last_slash : last_backslash;
+    
+    if (last_sep)
+    {
+        size_t dir_len = last_sep - c_file_path + 1;
+        if (dir_len < sizeof(c_file_dir))
+        {
+            strncpy(c_file_dir, c_file_path, dir_len);
+            c_file_dir[dir_len] = '\0';
+            strcpy(c_file_name, last_sep + 1);
+        }
+        else
+        {
+            strcpy(c_file_name, c_file_path);
+            strcpy(c_file_dir, "./");
+        }
+    }
+    else
+    {
+        strcpy(c_file_name, c_file_path);
+        strcpy(c_file_dir, "./");
+    }
+    
+    char base_name[512] = {0};
+    strncpy(base_name, c_file_name, sizeof(base_name) - 1);
+    base_name[sizeof(base_name) - 1] = '\0';
+    char *dot = strrchr(base_name, '.');
+    if (dot && strcmp(dot, ".c") == 0)
+    {
+        *dot = '\0';
+    }
+    
+    int exe_len = snprintf(output_exe, sizeof(output_exe), "%s%s.exe", c_file_dir, base_name);
+    if (exe_len >= (int)sizeof(output_exe))
+    {
+        fprintf(stderr, "Error: Output executable path too long\n");
+        return false;
+    }
+    
+    char include_path[1024] = {0};
+    char runtime_path[1024] = {0};
+    char working_dir[1024] = {0};
+    
+    char *compiler_dir = get_compiler_directory();
+    
+#ifdef _WIN32
+    snprintf(include_path, sizeof(include_path), "%sinclude", compiler_dir);
+    snprintf(runtime_path, sizeof(runtime_path), "%ssrc\\runtime\\runtime.c", compiler_dir);
+#else
+    snprintf(include_path, sizeof(include_path), "%sinclude", compiler_dir);
+    snprintf(runtime_path, sizeof(runtime_path), "%ssrc/runtime/runtime.c", compiler_dir);
+#endif
+    
+    if (strlen(c_file_dir) > 0 && strcmp(c_file_dir, "./") != 0)
+    {
+        strncpy(working_dir, c_file_dir, sizeof(working_dir) - 1);
+        working_dir[sizeof(working_dir) - 1] = '\0';
+    }
+    else
+    {
+        strcpy(working_dir, ".");
+    }
+    
+    char c_file_for_cmd[1024] = {0};
+    if (strlen(working_dir) > 0)
+    {
+        strncpy(c_file_for_cmd, c_file_name, sizeof(c_file_for_cmd) - 1);
+        c_file_for_cmd[sizeof(c_file_for_cmd) - 1] = '\0';
+    }
+    else
+    {
+        strncpy(c_file_for_cmd, c_file_path, sizeof(c_file_for_cmd) - 1);
+        c_file_for_cmd[sizeof(c_file_for_cmd) - 1] = '\0';
+    }
+    
+    char output_exe_for_cmd[1024] = {0};
+    int exe_cmd_len = snprintf(output_exe_for_cmd, sizeof(output_exe_for_cmd), "%s.exe", base_name);
+    if (exe_cmd_len >= (int)sizeof(output_exe_for_cmd))
+    {
+        fprintf(stderr, "Error: Output executable name too long\n");
+        return false;
+    }
+    
+    char gcc_cmd[4096] = {0};
+    int cmd_len;
+    if (strlen(working_dir) > 0)
+    {
+        cmd_len = snprintf(gcc_cmd, sizeof(gcc_cmd), "cd /d \"%s\" && \"%s\" -I\"%s\" \"%s\" \"%s\" -o \"%s\"",
+                 working_dir, gcc_path, include_path, c_file_for_cmd, runtime_path, output_exe_for_cmd);
+    }
+    else
+    {
+        cmd_len = snprintf(gcc_cmd, sizeof(gcc_cmd), "\"%s\" -I\"%s\" \"%s\" \"%s\" -o \"%s\"",
+                 gcc_path, include_path, c_file_for_cmd, runtime_path, output_exe_for_cmd);
+    }
+    
+    if (cmd_len >= (int)sizeof(gcc_cmd))
+    {
+        fprintf(stderr, "Error: GCC command too long\n");
+        return false;
+    }
+    
+    if (debug_enabled)
+    {
+        printf("[DEBUG] Compiling generated C code with gcc:\n");
+        printf("[DEBUG] C file path: %s\n", c_file_path);
+        printf("[DEBUG] C file dir: %s\n", c_file_dir);
+        printf("[DEBUG] Working dir: %s\n", working_dir);
+        printf("[DEBUG] Include path: %s\n", include_path);
+        printf("[DEBUG] Runtime path: %s\n", runtime_path);
+        printf("[DEBUG] Command: %s\n", gcc_cmd);
+        fflush(stdout);
+    }
+    
+    int result = system(gcc_cmd);
+    
+    if (result != 0)
+    {
+        fprintf(stderr, "Error: Failed to compile generated C code with gcc (exit code: %d)\n", result);
+        fprintf(stderr, "Command: %s\n", gcc_cmd);
+        fprintf(stderr, "Make sure gcc is available at: %s\n", gcc_path);
+        fflush(stderr);
+        return false;
+    }
+    
+    if (debug_enabled)
+    {
+        printf("[DEBUG] Successfully compiled to: %s\n", output_exe);
+        fflush(stdout);
+    }
+    else
+    {
+        printf("Compiled successfully: %s\n", output_exe);
+        fflush(stdout);
+    }
+    
     return true;
 }
 

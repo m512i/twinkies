@@ -19,4 +19,6 @@ void dump_stmt_json(Stmt *stmt, int indent);
 void dump_expr_json(Expr *expr, int indent);
 void print_json_indent(int indent);
 
+char *get_compiler_directory(void);
+
 #endif

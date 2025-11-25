@@ -13,7 +13,8 @@ SOURCES = $(wildcard $(SRCDIR)/*.c) \
           $(wildcard $(SRCDIR)/backend/*/*.c) \
           $(wildcard $(SRCDIR)/common/*.c) \
           $(wildcard $(SRCDIR)/modules/*.c) \
-          $(wildcard $(SRCDIR)/modules/ffi/*.c)
+          $(wildcard $(SRCDIR)/modules/ffi/*.c) \
+          $(wildcard $(SRCDIR)/runtime/*.c)
 
 OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
 
