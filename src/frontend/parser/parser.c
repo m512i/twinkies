@@ -111,10 +111,10 @@ void parser_error(Parser *parser, const char *message)
     }
 
     parser->had_error = true;
-    
+
     if (debug_enabled)
     {
-        printf("[DEBUG] Parser error at line %d, column %d: %s\n", 
+        printf("[DEBUG] Parser error at line %d, column %d: %s\n",
                parser->current.line, parser->current.column, message);
         fflush(stdout);
     }
@@ -544,19 +544,19 @@ Stmt *parse_var_declaration(Parser *parser)
     }
     else if (parser_match(parser, TOKEN_INT8))
     {
-        type = TYPE_INT; // Map to INT for now
+        type = TYPE_INT;
     }
     else if (parser_match(parser, TOKEN_INT16))
     {
-        type = TYPE_INT; // Map to INT for now
+        type = TYPE_INT;
     }
     else if (parser_match(parser, TOKEN_INT32))
     {
-        type = TYPE_INT; // Map to INT for now
+        type = TYPE_INT;
     }
     else if (parser_match(parser, TOKEN_INT64))
     {
-        type = TYPE_INT; // Map to INT for now
+        type = TYPE_INT;
     }
     else if (parser_match(parser, TOKEN_BOOL))
     {
@@ -947,7 +947,7 @@ Function *parse_function_declaration(Parser *parser)
     }
     else if (parser_match(parser, TOKEN_INT8))
     {
-        function->return_type = TYPE_INT; // Map to INT for now
+        function->return_type = TYPE_INT;
         if (debug_enabled)
         {
             printf("[DEBUG] Return type: INT8\n");
@@ -956,7 +956,7 @@ Function *parse_function_declaration(Parser *parser)
     }
     else if (parser_match(parser, TOKEN_INT16))
     {
-        function->return_type = TYPE_INT; // Map to INT for now
+        function->return_type = TYPE_INT;
         if (debug_enabled)
         {
             printf("[DEBUG] Return type: INT16\n");
@@ -965,7 +965,7 @@ Function *parse_function_declaration(Parser *parser)
     }
     else if (parser_match(parser, TOKEN_INT32))
     {
-        function->return_type = TYPE_INT; // Map to INT for now
+        function->return_type = TYPE_INT;
         if (debug_enabled)
         {
             printf("[DEBUG] Return type: INT32\n");
@@ -974,7 +974,7 @@ Function *parse_function_declaration(Parser *parser)
     }
     else if (parser_match(parser, TOKEN_INT64))
     {
-        function->return_type = TYPE_INT; // Map to INT for now (can be extended later)
+        function->return_type = TYPE_INT;
         if (debug_enabled)
         {
             printf("[DEBUG] Return type: INT64\n");
@@ -1014,6 +1014,15 @@ Function *parse_function_declaration(Parser *parser)
         if (debug_enabled)
         {
             printf("[DEBUG] Return type: STRING\n");
+            fflush(stdout);
+        }
+    }
+    else if (parser_match(parser, TOKEN_VOID))
+    {
+        function->return_type = TYPE_VOID;
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: VOID\n");
             fflush(stdout);
         }
     }
@@ -1104,7 +1113,7 @@ Function *parse_function(Parser *parser)
     }
     else if (parser_match(parser, TOKEN_INT8))
     {
-        function->return_type = TYPE_INT; // Map to INT for now
+        function->return_type = TYPE_INT;
         if (debug_enabled)
         {
             printf("[DEBUG] Return type: INT8\n");
@@ -1113,7 +1122,7 @@ Function *parse_function(Parser *parser)
     }
     else if (parser_match(parser, TOKEN_INT16))
     {
-        function->return_type = TYPE_INT; // Map to INT for now
+        function->return_type = TYPE_INT;
         if (debug_enabled)
         {
             printf("[DEBUG] Return type: INT16\n");
@@ -1122,7 +1131,7 @@ Function *parse_function(Parser *parser)
     }
     else if (parser_match(parser, TOKEN_INT32))
     {
-        function->return_type = TYPE_INT; // Map to INT for now
+        function->return_type = TYPE_INT;
         if (debug_enabled)
         {
             printf("[DEBUG] Return type: INT32\n");
@@ -1131,7 +1140,7 @@ Function *parse_function(Parser *parser)
     }
     else if (parser_match(parser, TOKEN_INT64))
     {
-        function->return_type = TYPE_INT; // Map to INT for now (can be extended later)
+        function->return_type = TYPE_INT;
         if (debug_enabled)
         {
             printf("[DEBUG] Return type: INT64\n");
@@ -1171,6 +1180,15 @@ Function *parse_function(Parser *parser)
         if (debug_enabled)
         {
             printf("[DEBUG] Return type: STRING\n");
+            fflush(stdout);
+        }
+    }
+    else if (parser_match(parser, TOKEN_VOID))
+    {
+        function->return_type = TYPE_VOID;
+        if (debug_enabled)
+        {
+            printf("[DEBUG] Return type: VOID\n");
             fflush(stdout);
         }
     }
@@ -1216,19 +1234,19 @@ Parameter *parse_parameter(Parser *parser)
     }
     else if (parser_match(parser, TOKEN_INT8))
     {
-        type = TYPE_INT; // Map to INT for now
+        type = TYPE_INT;
     }
     else if (parser_match(parser, TOKEN_INT16))
     {
-        type = TYPE_INT; // Map to INT for now
+        type = TYPE_INT;
     }
     else if (parser_match(parser, TOKEN_INT32))
     {
-        type = TYPE_INT; // Map to INT for now
+        type = TYPE_INT;
     }
     else if (parser_match(parser, TOKEN_INT64))
     {
-        type = TYPE_INT; // Map to INT for now
+        type = TYPE_INT;
     }
     else if (parser_match(parser, TOKEN_BOOL))
     {
@@ -1338,8 +1356,8 @@ Program *parser_parse(Parser *parser)
             }
             char *calling_convention = string_copy(parser->current.literal.string_value);
             parser_advance(parser);
-            
-            char *library_name = string_copy("kernel32.dll"); 
+
+            char *library_name = string_copy("kernel32.dll");
             if (parser_match(parser, TOKEN_FROM))
             {
                 if (!parser_check(parser, TOKEN_STRING_LITERAL))
@@ -1353,9 +1371,9 @@ Program *parser_parse(Parser *parser)
                 library_name = string_copy(parser->current.literal.string_value);
                 parser_advance(parser);
             }
-            
+
             parser_consume(parser, TOKEN_LBRACE, "Expect '{' after calling convention.");
-            
+
             while (!parser_check(parser, TOKEN_RBRACE) && !parser_check(parser, TOKEN_EOF))
             {
                 if (!parser_match(parser, TOKEN_FUNC))
@@ -1363,7 +1381,7 @@ Program *parser_parse(Parser *parser)
                     parser_error(parser, "Expect 'func' inside extern block.");
                     break;
                 }
-                
+
                 if (!parser_check(parser, TOKEN_IDENTIFIER))
                 {
                     parser_error(parser, "Expect function name.");
@@ -1371,11 +1389,11 @@ Program *parser_parse(Parser *parser)
                 }
                 char *func_name = string_copy(parser->current.lexeme);
                 parser_advance(parser);
-                
+
                 parser_consume(parser, TOKEN_LPAREN, "Expect '(' after function name.");
-                
+
                 FFIFunction *ffi_func = ffi_function_create(func_name, library_name, calling_convention, (int)TYPE_INT);
-                
+
                 if (!parser_check(parser, TOKEN_RPAREN))
                 {
                     do
@@ -1387,7 +1405,7 @@ Program *parser_parse(Parser *parser)
                         }
                         char *param_name = string_copy(parser->current.lexeme);
                         parser_advance(parser);
-                        
+
                         parser_consume(parser, TOKEN_COLON, "Expect ':' after parameter name.");
                         DataType param_type = token_to_data_type(parser->current.type);
                         if (param_type == TYPE_NULL)
@@ -1397,7 +1415,7 @@ Program *parser_parse(Parser *parser)
                             break;
                         }
                         parser_advance(parser);
-                        
+
                         if (debug_enabled)
                         {
                             printf("[DEBUG] Creating parameter: %s with type %d\n", param_name, param_type);
@@ -1413,10 +1431,10 @@ Program *parser_parse(Parser *parser)
                         }
                     } while (parser_match(parser, TOKEN_COMMA));
                 }
-                
+
                 parser_consume(parser, TOKEN_RPAREN, "Expect ')' after function parameters.");
                 parser_consume(parser, TOKEN_ARROW, "Expect '->' after function parameters.");
-                
+
                 DataType return_type = token_to_data_type(parser->current.type);
                 if (return_type == TYPE_NULL)
                 {
@@ -1426,9 +1444,9 @@ Program *parser_parse(Parser *parser)
                     break;
                 }
                 parser_advance(parser);
-                
+
                 ffi_func->return_type = (int)return_type;
-                
+
                 parser_consume(parser, TOKEN_SEMICOLON, "Expect ';' after function declaration.");
                 if (ffi_func)
                 {
@@ -1439,15 +1457,15 @@ Program *parser_parse(Parser *parser)
                         fflush(stdout);
                     }
                 }
-                
+
                 safe_free(func_name);
             }
-            
+
             parser_consume(parser, TOKEN_RBRACE, "Expect '}' after extern block.");
-            
+
             safe_free(calling_convention);
             safe_free(library_name);
-            
+
             if (debug_enabled)
             {
                 printf("[DEBUG] Parsed extern block successfully\n");
@@ -1510,20 +1528,20 @@ Stmt *parse_inline_asm(Parser *parser)
 {
     int line = parser->previous.line;
     int column = parser->previous.column;
-    
+
     bool is_volatile = parser_match(parser, TOKEN_VOLATILE);
-    
+
     parser_consume(parser, TOKEN_LBRACE, "Expect '{' after 'asm'");
-    
+
     if (!parser_check(parser, TOKEN_STRING_LITERAL))
     {
         parser_error(parser, "Expect assembly code string");
         return NULL;
     }
-    
+
     DynamicArray string_parts;
     array_init(&string_parts, 4);
-    
+
     while (parser_check(parser, TOKEN_STRING_LITERAL))
     {
         char *str_part = string_copy(parser->current.literal.string_value);
@@ -1537,14 +1555,14 @@ Stmt *parse_inline_asm(Parser *parser)
         array_push(&string_parts, str_part);
         parser_advance(parser);
     }
-    
+
     size_t total_len = 0;
     for (size_t i = 0; i < string_parts.size; i++)
     {
         char *part = (char*)array_get(&string_parts, i);
         total_len += strlen(part);
     }
-    
+
     char *asm_code = safe_malloc(total_len + 1);
     asm_code[0] = '\0';
     for (size_t i = 0; i < string_parts.size; i++)
@@ -1554,17 +1572,17 @@ Stmt *parse_inline_asm(Parser *parser)
         safe_free(part);
     }
     array_free(&string_parts);
-    
+
     Stmt *stmt = stmt_inline_asm(asm_code, is_volatile, line, column);
     safe_free(asm_code);
-    
+
     if (parser_match(parser, TOKEN_COLON))
     {
         while (true)
         {
             if (!parser_check(parser, TOKEN_STRING_LITERAL))
                 break;
-            
+
             char *constraint = string_copy(parser->current.literal.string_value);
             if (constraint[0] == '"' && constraint[strlen(constraint) - 1] == '"')
             {
@@ -1574,7 +1592,7 @@ Stmt *parse_inline_asm(Parser *parser)
                 constraint[strlen(constraint) - 1] = '\0';
             }
             parser_advance(parser);
-            
+
             parser_consume(parser, TOKEN_LPAREN, "Expect '(' after constraint");
             if (!parser_check(parser, TOKEN_IDENTIFIER))
             {
@@ -1585,15 +1603,15 @@ Stmt *parse_inline_asm(Parser *parser)
             char *variable = string_copy(parser->current.lexeme);
             parser_advance(parser);
             parser_consume(parser, TOKEN_RPAREN, "Expect ')' after variable");
-            
+
             stmt_add_inline_asm_output(stmt, constraint, variable);
             safe_free(constraint);
             safe_free(variable);
-            
+
             if (!parser_match(parser, TOKEN_COMMA))
                 break;
         }
-        
+
         if (debug_enabled)
         {
             printf("[DEBUG] Before checking for colon after outputs, current token: %s\n",
@@ -1643,21 +1661,21 @@ Stmt *parse_inline_asm(Parser *parser)
                 Token peek = lexer_peek_token(parser->lexer);
                 is_input = (peek.type == TOKEN_LPAREN);
                 token_destroy(&peek);
-                
+
                 if (debug_enabled)
                 {
-                    printf("[DEBUG] After peek, is_input=%d, current token type: %d (%s)\n", 
+                    printf("[DEBUG] After peek, is_input=%d, current token type: %d (%s)\n",
                            is_input, parser->current.type, token_type_to_string(parser->current.type));
                     fflush(stdout);
                 }
-                
+
                 if (is_input)
                 {
                     while (true)
                     {
                         if (!parser_check(parser, TOKEN_STRING_LITERAL))
                             break;
-                        
+
                         char *constraint = string_copy(parser->current.literal.string_value);
                         if (constraint[0] == '"' && constraint[strlen(constraint) - 1] == '"')
                         {
@@ -1667,7 +1685,7 @@ Stmt *parse_inline_asm(Parser *parser)
                             constraint[strlen(constraint) - 1] = '\0';
                         }
                         parser_advance(parser);
-                        
+
                         parser_consume(parser, TOKEN_LPAREN, "Expect '(' after constraint");
                         char *variable = NULL;
                         if (parser_check(parser, TOKEN_IDENTIFIER))
@@ -1689,22 +1707,22 @@ Stmt *parse_inline_asm(Parser *parser)
                             break;
                         }
                         parser_consume(parser, TOKEN_RPAREN, "Expect ')' after input operand");
-                        
+
                         stmt_add_inline_asm_input(stmt, constraint, variable);
                         safe_free(constraint);
                         safe_free(variable);
-                        
+
                         if (!parser_match(parser, TOKEN_COMMA))
                             break;
                     }
-                    
+
                     if (parser_match(parser, TOKEN_COLON))
                     {
                         while (true)
                         {
                             if (!parser_check(parser, TOKEN_STRING_LITERAL))
                                 break;
-                            
+
                             char *clobber = string_copy(parser->current.literal.string_value);
                             if (clobber[0] == '"' && clobber[strlen(clobber) - 1] == '"')
                             {
@@ -1714,10 +1732,10 @@ Stmt *parse_inline_asm(Parser *parser)
                                 clobber[strlen(clobber) - 1] = '\0';
                             }
                             parser_advance(parser);
-                            
+
                             stmt_add_inline_asm_clobber(stmt, clobber);
                             safe_free(clobber);
-                            
+
                             if (!parser_match(parser, TOKEN_COMMA))
                                 break;
                         }
@@ -1727,7 +1745,7 @@ Stmt *parse_inline_asm(Parser *parser)
                 {
                     if (debug_enabled)
                     {
-                        printf("[DEBUG] Entering clobbers section (no inputs), current token: %s, lexeme: %s\n", 
+                        printf("[DEBUG] Entering clobbers section (no inputs), current token: %s, lexeme: %s\n",
                                token_type_to_string(parser->current.type),
                                parser->current.lexeme ? parser->current.lexeme : "(null)");
                         fflush(stdout);
@@ -1736,13 +1754,13 @@ Stmt *parse_inline_asm(Parser *parser)
                     {
                         if (debug_enabled)
                         {
-                            printf("[DEBUG] Checking for string literal in clobbers loop, current: %s\n", 
+                            printf("[DEBUG] Checking for string literal in clobbers loop, current: %s\n",
                                    token_type_to_string(parser->current.type));
                             fflush(stdout);
                         }
                         if (!parser_check(parser, TOKEN_STRING_LITERAL))
                             break;
-                        
+
                         char *clobber = string_copy(parser->current.literal.string_value);
                         if (clobber[0] == '"' && clobber[strlen(clobber) - 1] == '"')
                         {
@@ -1752,16 +1770,16 @@ Stmt *parse_inline_asm(Parser *parser)
                             clobber[strlen(clobber) - 1] = '\0';
                         }
                         parser_advance(parser);
-                        
+
                         stmt_add_inline_asm_clobber(stmt, clobber);
                         safe_free(clobber);
-                        
+
                         if (!parser_match(parser, TOKEN_COMMA))
                             break;
                     }
                     if (debug_enabled)
                     {
-                        printf("[DEBUG] After parsing clobbers (no inputs), current token: %s (line %d, col %d)\n", 
+                        printf("[DEBUG] After parsing clobbers (no inputs), current token: %s (line %d, col %d)\n",
                                token_type_to_string(parser->current.type),
                                parser->current.line, parser->current.column);
                         fflush(stdout);
@@ -1781,7 +1799,7 @@ Stmt *parse_inline_asm(Parser *parser)
                     {
                         if (parser->current.type != TOKEN_STRING_LITERAL)
                             break;
-                        
+
                         char *clobber = string_copy(parser->current.literal.string_value);
                         if (clobber[0] == '"' && clobber[strlen(clobber) - 1] == '"')
                         {
@@ -1791,10 +1809,10 @@ Stmt *parse_inline_asm(Parser *parser)
                             clobber[strlen(clobber) - 1] = '\0';
                         }
                         parser_advance(parser);
-                        
+
                         stmt_add_inline_asm_clobber(stmt, clobber);
                         safe_free(clobber);
-                        
+
                         if (!parser_match(parser, TOKEN_COMMA))
                             break;
                     }
@@ -1803,28 +1821,28 @@ Stmt *parse_inline_asm(Parser *parser)
                 {
                     if (debug_enabled)
                     {
-                        printf("[DEBUG] After colon, expected string literal but got: %s\n", 
+                        printf("[DEBUG] After colon, expected string literal but got: %s\n",
                                token_type_to_string(parser->current.type));
                         fflush(stdout);
                     }
                 }
             }
-            
+
             if (debug_enabled)
             {
-                printf("[DEBUG] Before checking had_empty_inputs, current token: %s\n", 
+                printf("[DEBUG] Before checking had_empty_inputs, current token: %s\n",
                        token_type_to_string(parser->current.type));
                 fflush(stdout);
             }
-            
+
             if (had_empty_inputs && parser_check(parser, TOKEN_COLON))
             {
-                parser_advance(parser); 
+                parser_advance(parser);
                 while (true)
                 {
                     if (!parser_check(parser, TOKEN_STRING_LITERAL))
                         break;
-                    
+
                     char *clobber = string_copy(parser->current.literal.string_value);
                     if (clobber[0] == '"' && clobber[strlen(clobber) - 1] == '"')
                     {
@@ -1834,10 +1852,10 @@ Stmt *parse_inline_asm(Parser *parser)
                         clobber[strlen(clobber) - 1] = '\0';
                     }
                     parser_advance(parser);
-                    
+
                     stmt_add_inline_asm_clobber(stmt, clobber);
                     safe_free(clobber);
-                    
+
                     if (!parser_match(parser, TOKEN_COMMA))
                         break;
                 }
@@ -1845,17 +1863,17 @@ Stmt *parse_inline_asm(Parser *parser)
         }
         if (debug_enabled)
         {
-            printf("[DEBUG] After exiting outputs block, current token: %s (line %d, col %d)\n", 
+            printf("[DEBUG] After exiting outputs block, current token: %s (line %d, col %d)\n",
                    token_type_to_string(parser->current.type),
                    parser->current.line, parser->current.column);
             fflush(stdout);
         }
     }
-    
+
     if (debug_enabled)
     {
-        printf("[DEBUG] Before consuming RBRACE, current token: %s (line %d, col %d)\n", 
-               token_type_to_string(parser->current.type), 
+        printf("[DEBUG] Before consuming RBRACE, current token: %s (line %d, col %d)\n",
+               token_type_to_string(parser->current.type),
                parser->current.line, parser->current.column);
         if (parser->current.lexeme)
         {
@@ -1864,13 +1882,13 @@ Stmt *parse_inline_asm(Parser *parser)
         fflush(stdout);
     }
     parser_consume(parser, TOKEN_RBRACE, "Expect '}' after inline assembly");
-    
+
     if (!parser_match(parser, TOKEN_SEMICOLON))
     {
         parser_error(parser, "Expect ';' after inline assembly statement");
         parser_synchronize(parser);
     }
-    
+
     return stmt;
 }
 
@@ -1881,7 +1899,7 @@ FFIFunction *parse_extern_declaration(Parser *parser, Program *program)
         parser_error(parser, "Expect calling convention string after 'extern'.");
         return NULL;
     }
-    
+
     char *calling_convention;
     if (parser->current.literal.string_value) {
         calling_convention = string_copy(parser->current.literal.string_value);
@@ -1890,8 +1908,8 @@ FFIFunction *parse_extern_declaration(Parser *parser, Program *program)
         parser_error(parser, "Invalid calling convention string after 'extern'.");
         return NULL;
     }
-    
-    char *library_name = string_copy("kernel32.dll"); 
+
+    char *library_name = string_copy("kernel32.dll");
     if (parser_match(parser, TOKEN_FROM))
     {
         if (!parser_check(parser, TOKEN_STRING_LITERAL))
@@ -1911,35 +1929,35 @@ FFIFunction *parse_extern_declaration(Parser *parser, Program *program)
         }
         parser_advance(parser);
     }
-    
+
     parser_consume(parser, TOKEN_LBRACE, "Expect '{' after calling convention.");
-    
+
     FFIFunction *first_func = NULL;
-    
+
     while (!parser_check(parser, TOKEN_RBRACE) && !parser_check(parser, TOKEN_EOF))
     {
-        
+
         if (!parser_match(parser, TOKEN_FUNC))
         {
             parser_error(parser, "Expect 'func' inside extern block.");
             break;
         }
-        
+
         if (!parser_check(parser, TOKEN_IDENTIFIER))
         {
             parser_error(parser, "Expect function name after 'func'.");
             break;
         }
-        
+
         char *func_name = string_copy(parser->current.lexeme);
         parser_advance(parser);
-        
+
         parser_consume(parser, TOKEN_LPAREN, "Expect '(' after function name.");
-        
+
         FFIFunction *ffi_func = ffi_function_create(func_name, library_name, calling_convention, (int)TYPE_INT);
         ffi_func->line = parser->current.line;
         ffi_func->column = parser->current.column;
-        
+
         if (!parser_check(parser, TOKEN_RPAREN))
         {
             do
@@ -1949,18 +1967,18 @@ FFIFunction *parse_extern_declaration(Parser *parser, Program *program)
                     parser_error(parser, "Cannot have more than 255 parameters.");
                     break;
                 }
-                
+
                 if (!parser_check(parser, TOKEN_IDENTIFIER))
                 {
                     parser_error(parser, "Expect parameter name.");
                     break;
                 }
-                
+
                 char *param_name = string_copy(parser->current.lexeme);
                 parser_advance(parser);
-                
+
                 parser_consume(parser, TOKEN_COLON, "Expect ':' after parameter name.");
-                
+
                 DataType param_type = token_to_data_type(parser->current.type);
                 if (param_type == TYPE_NULL)
                 {
@@ -1968,16 +1986,16 @@ FFIFunction *parse_extern_declaration(Parser *parser, Program *program)
                     break;
                 }
                 parser_advance(parser);
-                
+
                 Parameter *param = parameter_create(param_name, param_type);
                 ffi_function_add_param(ffi_func, param);
-                
+
             } while (parser_match(parser, TOKEN_COMMA));
         }
-        
+
         parser_consume(parser, TOKEN_RPAREN, "Expect ')' after parameters.");
         parser_consume(parser, TOKEN_ARROW, "Expect '->' after function parameters.");
-        
+
         DataType return_type = token_to_data_type(parser->current.type);
         if (return_type == TYPE_NULL)
         {
@@ -1985,22 +2003,22 @@ FFIFunction *parse_extern_declaration(Parser *parser, Program *program)
             break;
         }
         parser_advance(parser);
-        
+
         ffi_func->return_type = (int)return_type;
-        
+
         parser_consume(parser, TOKEN_SEMICOLON, "Expect ';' after function declaration.");
-        
+
         program_add_ffi_function(program, ffi_func);
-        
+
         if (!first_func)
         {
             first_func = ffi_func;
         }
         // Note: We don't destroy ffi_func here because it's now owned by the program
     }
-    
+
     parser_consume(parser, TOKEN_RBRACE, "Expect '}' after extern block.");
-    
+
     safe_free(calling_convention);
     safe_free(library_name);
     return first_func;

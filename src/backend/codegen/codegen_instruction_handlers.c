@@ -125,7 +125,11 @@ void codegen_handle_jump_if_false(CodeGenerator *generator, IRInstruction *instr
 void codegen_handle_return(CodeGenerator *generator, IRInstruction *instr)
 {
     codegen_core_write_indent(generator);
-    if (instr->arg1)
+    if (generator->current_function_return_type == TYPE_VOID)
+    {
+        fprintf(generator->output_file, "return;\n");
+    }
+    else if (instr->arg1)
     {
         fprintf(generator->output_file, "return ");
         codegen_c_writer_write_operand(generator, instr->arg1);
@@ -365,7 +369,6 @@ void codegen_handle_array_decl(CodeGenerator *generator, IRInstruction *instr)
 {
     (void)generator;
     (void)instr;
-    // Array declarations are handled in function header generation
 }
 
 void codegen_handle_array_init(CodeGenerator *generator, IRInstruction *instr)
@@ -387,7 +390,6 @@ void codegen_handle_var_decl(CodeGenerator *generator, IRInstruction *instr)
 {
     (void)generator;
     (void)instr;
-    // Variable declarations are handled in function header generation
 }
 
 void codegen_handle_inline_asm(CodeGenerator *generator, IRInstruction *instr)

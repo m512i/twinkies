@@ -49,6 +49,7 @@ typedef struct
     Scope *current_scope;
     ErrorContext *error_context;
     bool had_error;
+    DataType current_function_return_type;
 } SemanticAnalyzer;
 
 SemanticAnalyzer *semantic_create(Program *program, ErrorContext *error_context);
@@ -64,6 +65,7 @@ Symbol *scope_define_array(SemanticAnalyzer *analyzer, const char *name, DataTyp
 Symbol *scope_define_function(SemanticAnalyzer *analyzer, const char *name, DataType return_type);
 Symbol *scope_define_ffi_function(SemanticAnalyzer *analyzer, FFIFunction *ffi_func);
 Symbol *scope_resolve(SemanticAnalyzer *analyzer, const char *name);
+Symbol *resolve_function_overload(SemanticAnalyzer *analyzer, const char *name, DynamicArray *arg_types);
 int get_array_size(SemanticAnalyzer *analyzer, const char *name);
 
 DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr);

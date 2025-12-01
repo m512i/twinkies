@@ -202,6 +202,53 @@ IROperand *ir_generate_expression_impl(IRFunction *ir_func, Expr *expr, Semantic
 
     case EXPR_CALL:
     {
+        DynamicArray arg_types;
+        array_init(&arg_types, expr->data.call.args.size);
+
+        for (size_t i = 0; i < expr->data.call.args.size; i++)
+        {
+            Expr *arg_expr = (Expr *)array_get(&expr->data.call.args, i);
+            DataType arg_type = type_check_expression(analyzer, arg_expr);
+            Parameter *p = safe_malloc(sizeof(Parameter));
+            p->name = NULL;
+            p->type = arg_type;
+            array_push(&arg_types, p);
+        }
+
+        Symbol *func_symbol = resolve_function_overload(analyzer, expr->data.call.name, &arg_types);
+
+        for (size_t i = 0; i < arg_types.size; i++)
+            safe_free(array_get(&arg_types, i));
+        array_free(&arg_types);
+
+        DataType return_type = TYPE_INT;
+
+        if (func_symbol && func_symbol->type == SYMBOL_FUNCTION)
+        {
+            return_type = func_symbol->data_type;
+        }
+
+        if (return_type == TYPE_VOID)
+        {
+            if (debug_enabled)
+            {
+                printf("[DEBUG] ir_generate: Void function call %s, no result temporary\n", expr->data.call.name);
+            }
+
+            for (size_t i = 0; i < expr->data.call.args.size; i++)
+            {
+                Expr *arg_expr = (Expr *)array_get(&expr->data.call.args, i);
+                IROperand *arg = ir_generate_expression_impl(ir_func, arg_expr, analyzer, TYPE_NULL);
+                IRInstruction *param = ir_instruction_param(arg);
+                ir_function_add_instruction(ir_func, param);
+            }
+
+            IRInstruction *call = ir_instruction_call(NULL, expr->data.call.name);
+            ir_function_add_instruction(ir_func, call);
+
+            return NULL;
+        }
+
         IROperand *result = ir_operand_temp(ir_function_new_temp(ir_func));
 
         if (debug_enabled)
@@ -242,10 +289,10 @@ IROperand *ir_generate_expression_impl(IRFunction *ir_func, Expr *expr, Semantic
         }
         else
         {
-            result->data_type = TYPE_INT;
+            result->data_type = (return_type != TYPE_INT && return_type != TYPE_VOID) ? return_type : TYPE_INT;
             if (debug_enabled)
             {
-                printf("[DEBUG] ir_generate: Default function call %s, setting temp_%d to TYPE_INT\n", expr->data.call.name, result->data.temp_id);
+                printf("[DEBUG] ir_generate: Function call %s, setting temp_%d to return type\n", expr->data.call.name, result->data.temp_id);
             }
         }
 
@@ -314,7 +361,7 @@ IROperand *ir_generate_expression_impl(IRFunction *ir_func, Expr *expr, Semantic
             if (array_size != -1)
             {
                 bool needs_bounds_check = true;
-                
+
                 if (index->type == IR_OP_CONST)
                 {
                     int index_value = index->data.const_value;
@@ -323,21 +370,21 @@ IROperand *ir_generate_expression_impl(IRFunction *ir_func, Expr *expr, Semantic
                         needs_bounds_check = false;
                     }
                 }
-                
+
                 if (needs_bounds_check)
                 {
                     if (!ir_func->oob_error_label)
                     {
                         ir_func->oob_error_label = ir_function_new_label(ir_func);
                     }
-                    
+
                     IROperand *zero = ir_operand_const(0);
                     IROperand *lower_condition = ir_operand_temp(ir_function_new_temp(ir_func));
                     IRInstruction *lower_compare = ir_instruction_binary(IR_LT, lower_condition, index, zero);
                     ir_function_add_instruction(ir_func, lower_compare);
                     IRInstruction *lower_jump = ir_instruction_jump_if(lower_condition, ir_func->oob_error_label);
                     ir_function_add_instruction(ir_func, lower_jump);
-                    
+
                     IROperand *size = ir_operand_const(array_size);
                     IROperand *upper_condition = ir_operand_temp(ir_function_new_temp(ir_func));
                     IRInstruction *upper_compare = ir_instruction_binary(IR_GE, upper_condition, index, size);

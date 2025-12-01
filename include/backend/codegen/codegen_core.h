@@ -26,6 +26,7 @@ struct CodeGenerator {
     IROperand *params[MAX_PARAMS];
     CodeGenStrategy *strategy;
     const char *current_function_name;
+    DataType current_function_return_type;
     char epilogue_label[64];
     HashTable *declared_temps;
 };

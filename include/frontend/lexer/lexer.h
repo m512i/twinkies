@@ -33,6 +33,7 @@ typedef enum
     TOKEN_FLOAT,
     TOKEN_DOUBLE,
     TOKEN_STRING_TYPE,
+    TOKEN_VOID,
 
     // Operators
     TOKEN_PLUS,    // +

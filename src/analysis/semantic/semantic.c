@@ -3,7 +3,6 @@
 extern bool debug_enabled;
 
 static Symbol *scope_define_function_overload(SemanticAnalyzer *analyzer, Function *func);
-static Symbol *resolve_function_overload(SemanticAnalyzer *analyzer, const char *name, DynamicArray *arg_types);
 static void make_signature_string(DynamicArray *params, char *buf, size_t buflen);
 static bool parameter_list_equals(DynamicArray *a, DynamicArray *b);
 static DynamicArray *get_or_create_overload_set(SemanticAnalyzer *analyzer, const char *name);
@@ -15,6 +14,7 @@ SemanticAnalyzer *semantic_create(Program *program, ErrorContext *error_context)
     analyzer->error_context = error_context;
     analyzer->had_error = false;
     analyzer->current_scope = scope_create(NULL);
+    analyzer->current_function_return_type = TYPE_INT;
     return analyzer;
 }
 
@@ -416,7 +416,6 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
         case TOKEN_PLUS:
             if (left_type == TYPE_STRING && right_type == TYPE_STRING)
                 return TYPE_STRING;
-            // else fallthrough
         default:
             return TYPE_INT;
         }
@@ -587,8 +586,6 @@ DataType type_check_expression(SemanticAnalyzer *analyzer, Expr *expr)
                 semantic_error(analyzer, "Array index must be integer", expr->line, expr->column);
                 return TYPE_VOID;
             }
-            // For now, return TYPE_INT as the element type
-            // In a full implementation, you'd track the actual element type
             return TYPE_INT;
         }
         else
@@ -792,9 +789,27 @@ static DataType type_check_statement_in_loop(SemanticAnalyzer *analyzer, Stmt *s
 
     case STMT_RETURN:
     {
+        DataType expected_return_type = analyzer->current_function_return_type;
+        
         if (stmt->data.return_stmt.value)
         {
-            type_check_expression(analyzer, stmt->data.return_stmt.value);
+            DataType return_value_type = type_check_expression(analyzer, stmt->data.return_stmt.value);
+            
+            if (expected_return_type == TYPE_VOID)
+            {
+                semantic_error(analyzer, "Void function cannot return a value", stmt->line, stmt->column);
+            }
+            else if (return_value_type != TYPE_VOID && !type_check_assignment(analyzer, expected_return_type, return_value_type))
+            {
+                semantic_error(analyzer, "Return value type does not match function return type", stmt->line, stmt->column);
+            }
+        }
+        else
+        {
+            if (expected_return_type != TYPE_VOID)
+            {
+                semantic_error(analyzer, "Non-void function must return a value", stmt->line, stmt->column);
+            }
         }
         return TYPE_VOID;
     }
@@ -841,12 +856,9 @@ static DataType type_check_statement_in_loop(SemanticAnalyzer *analyzer, Stmt *s
     }
 
     case STMT_INCLUDE:
-        // Include statements are handled at parse time, no semantic checking needed
         return TYPE_VOID;
 
     case STMT_INLINE_ASM:
-        // Inline assembly statements are passed through to code generation
-        // No semantic checking needed - the assembly code is trusted
         return TYPE_VOID;
 
     default:
@@ -862,6 +874,9 @@ DataType type_check_statement(SemanticAnalyzer *analyzer, Stmt *stmt)
 DataType type_check_function(SemanticAnalyzer *analyzer, Function *func)
 {
     scope_enter(analyzer);
+    
+    DataType previous_return_type = analyzer->current_function_return_type;
+    analyzer->current_function_return_type = func->return_type;
 
     for (size_t i = 0; i < func->params.size; i++)
     {
@@ -870,6 +885,8 @@ DataType type_check_function(SemanticAnalyzer *analyzer, Function *func)
     }
 
     type_check_statement(analyzer, func->body);
+    
+    analyzer->current_function_return_type = previous_return_type;
 
     // Don't destroy the scope here - keep it for IR generation
     // scope_exit(analyzer);
@@ -1262,7 +1279,7 @@ static Symbol *scope_define_function_overload(SemanticAnalyzer *analyzer, Functi
     return sym;
 }
 
-static Symbol *resolve_function_overload(SemanticAnalyzer *analyzer, const char *name, DynamicArray *arg_types)
+Symbol *resolve_function_overload(SemanticAnalyzer *analyzer, const char *name, DynamicArray *arg_types)
 {
     Scope *scope = analyzer->current_scope;
     Symbol *best_match = NULL;

@@ -14,6 +14,8 @@ static void c_strategy_generate_program(CodeGenerator *generator) {
 }
 
 static void c_strategy_generate_function(CodeGenerator *generator, IRFunction *func) {
+    generator->current_function_name = func->name;
+    generator->current_function_return_type = func->return_type;
     codegen_c_writer_write_function_header(generator, func);
 
     for (size_t i = 0; i < func->instructions.size; i++)

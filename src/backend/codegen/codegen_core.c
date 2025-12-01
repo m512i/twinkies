@@ -27,6 +27,7 @@ CodeGenerator *codegen_core_create(IRProgram *ir_program, Program *program, FILE
     generator->param_count = 0;
     generator->strategy = c_codegen_strategy_create();
     generator->current_function_name = NULL;
+    generator->current_function_return_type = TYPE_INT;
     generator->epilogue_label[0] = '\0';
     generator->declared_temps = hashtable_create(16);
     return generator;

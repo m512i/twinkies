@@ -314,6 +314,8 @@ static TLTokenType identifier_type(const char *lexeme)
         return TOKEN_DOUBLE;
     if (strcmp(lexeme, "string") == 0)
         return TOKEN_STRING_TYPE;
+    if (strcmp(lexeme, "void") == 0)
+        return TOKEN_VOID;
     if (strcmp(lexeme, "true") == 0)
         return TOKEN_TRUE;
     if (strcmp(lexeme, "false") == 0)
@@ -710,6 +712,8 @@ const char *token_type_to_string(TLTokenType type)
         return "STRING_LITERAL";
     case TOKEN_STRING_TYPE:
         return "STRING_TYPE";
+    case TOKEN_VOID:
+        return "VOID";
     case TOKEN_INCLUDE:
         return "INCLUDE";
     case TOKEN_HASH:

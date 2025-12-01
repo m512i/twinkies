@@ -340,6 +340,8 @@ const char *codegen_c_writer_get_c_type_string(DataType type)
         return "double";
     case TYPE_STRING:
         return "char*";
+    case TYPE_VOID:
+        return "void";
     case TYPE_ARRAY:
         return "int64_t"; // This will be overridden by the actual element type
     case TYPE_NULL:

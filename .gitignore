@@ -53,3 +53,19 @@ dkms.conf
 
 # debug information files
 *.dwo
+benchmark.py
+compiler.tex
+docs/01-overview.md
+docs/02-syntax.md
+docs/03-types.md
+docs/04-functions.md
+docs/05-control-flow.md
+docs/06-arrays-strings.md
+docs/07-modules.md
+docs/08-ffi.md
+docs/09-inline-assembly.md
+docs/10-examples.md
+docs/11-quick-reference.md
+docs/README.md
+docs/VERIFICATION.md
+examples/advanced/void_test.tl
