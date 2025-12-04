@@ -6,7 +6,7 @@
 #include "analysis/semantic/semantic.h"
 #include "backend/codegen/codegen.h"
 #include "backend/ir/ir.h"
-#include "modules/ffi/fficonfig.h"
+#include "modules/ffi/ffiConfig.h"
 
 typedef enum
 {
@@ -52,8 +52,6 @@ void ffi_library_destroy(FFILibrary *library);
 bool ffi_library_load(FFIManager *manager, FFILibrary *library);
 bool ffi_library_unload(FFIManager *manager, FFILibrary *library);
 FFILibrary *ffi_manager_get_library(FFIManager *manager, const char *name);
-
-// FFIFunction functions are now defined in fficonfig.h
 FFIFunction *ffi_manager_get_function(FFIManager *manager, const char *name);
 
 const char *ffi_get_c_type(DataType twink_type);
@@ -61,7 +59,6 @@ const char *ffi_get_ffi_type(DataType twink_type);
 bool ffi_is_ffi_compatible_type(DataType type);
 
 void ffi_generate_library_loading(CodeGenerator *generator, FFILibrary *library);
-// ffi_generate_function_call removed - dynamic FFI system generates calls at code generation time
 void ffi_write_platform_headers(CodeGenerator *generator);
 
 void ffi_error_library_not_found(const char *library_name, int line, int column);

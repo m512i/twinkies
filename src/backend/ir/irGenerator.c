@@ -1,6 +1,6 @@
 #include "backend/ir/ir.h"
 #include "analysis/semantic/semantic.h"
-#include "backend/ir/iroperands.h"
+#include "backend/ir/irOps.h"
 #include "backend/ir/irinstructions.h"
 #include "common/common.h"
 #include "modules/modules.h"
@@ -146,9 +146,6 @@ IRProgram *ir_generate_impl(Program *ast_program, SemanticAnalyzer *analyzer)
                                     param_copy->type = param->type;
                                     array_push(&module_func->params, param_copy);
                                 }
-
-                                // For now, create an empty body (module functions don't have bodies in symbols)
-                                // The actual implementation will be added later
                                 module_func->body = NULL;
 
                                 if (debug_enabled)

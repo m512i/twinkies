@@ -1,15 +1,14 @@
 #ifndef IR_H
 #define IR_H
 
-#include "backend/ir/ir_types.h"
-#include "backend/ir/ir_core.h"
-#include "backend/ir/ir_generator.h"
-#include "backend/ir/ir_statement.h"
-#include "backend/ir/ir_expression.h"
-#include "backend/ir/iroperands.h"
+#include "backend/ir/irTypes.h"
+#include "backend/ir/irCore.h"
+#include "backend/ir/irGenerator.h"
+#include "backend/ir/irStmt.h"
+#include "backend/ir/irExpr.h"
+#include "backend/ir/irOps.h"
 #include "backend/ir/irinstructions.h"
 
-// Public API entry points (declarations for functions implemented in other modules)
 IRProgram *ir_generate(Program *ast_program, SemanticAnalyzer *analyzer);
 IRProgram *ir_generate_with_modules(Program *ast_program, SemanticAnalyzer *analyzer, void *module_manager);
 IRFunction *ir_generate_function(Function *func, SemanticAnalyzer *analyzer);

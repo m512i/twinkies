@@ -4,10 +4,11 @@
 #include "frontend/lexer/lexer.h"
 #include "frontend/parser/parser.h"
 #include "frontend/ast/ast.h"
-#include "frontend/ast/aststmt.h"
+#include "frontend/ast/astStmt.h"
 #include "analysis/semantic/semantic.h"
 #include "backend/ir/ir.h"
 #include "backend/codegen/codegen.h"
+#include "optimizations/optimizer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -917,6 +918,15 @@ bool compile_multiple_files(DynamicArray *input_filenames, const char *output_fi
                                     "Failed to generate intermediate representation",
                                     "Check for unsupported language constructs", 0, 0);
         }
+        
+        if (ir_program)
+        {
+            if (debug_enabled)
+            {
+                printf("[DEBUG] compile_combined_files: Running optimizations\n");
+            }
+            optimization_optimize_program(ir_program);
+        }
     }
 
     if (combined_error_context->count > 0)
@@ -1150,6 +1160,21 @@ bool compile_file(const char *input_filename, const char *output_filename, bool 
         {
             printf("[DEBUG] compile_file: IR program created with %zu functions\n", ir_program->functions.size);
         }
+        
+        if (ir_program)
+        {
+            if (debug_enabled)
+            {
+                printf("[DEBUG] compile_file: Running optimizations\n");
+                fflush(stdout);
+            }
+            optimization_optimize_program(ir_program);
+            if (debug_enabled)
+            {
+                printf("[DEBUG] compile_file: Optimizations completed\n");
+                fflush(stdout);
+            }
+        }
     }
 
     if (error_context->count > 0)
@@ -1195,6 +1220,12 @@ bool compile_file(const char *input_filename, const char *output_filename, bool 
     CodeGenerator *generator = NULL;
     bool success = false;
 
+    if (debug_enabled)
+    {
+        printf("[DEBUG] compile_file: Creating code generator\n");
+        fflush(stdout);
+    }
+
     if (assembly_output)
     {
         generator = codegenasm_create(ir_program, output_file, &error);
@@ -1202,6 +1233,16 @@ bool compile_file(const char *input_filename, const char *output_filename, bool 
     else
     {
         generator = codegen_create(ir_program, program, output_file, &error);
+    }
+
+    if (debug_enabled)
+    {
+        printf("[DEBUG] compile_file: Code generator created: %s\n", generator ? "yes" : "no");
+        if (error.type != ERROR_NONE)
+        {
+            printf("[DEBUG] compile_file: Error during generator creation: %s\n", error.message);
+        }
+        fflush(stdout);
     }
 
     if (error.type != ERROR_NONE)
@@ -1569,6 +1610,15 @@ bool compile_module_system(const char *input_filename, const char *output_filena
             error_context_add_error(error_context, ERROR_CODEGEN, SEVERITY_ERROR,
                                     "Failed to generate intermediate representation",
                                     "Check for unsupported language constructs", 0, 0);
+        }
+        
+        if (ir_program)
+        {
+            if (debug_enabled)
+            {
+                printf("[DEBUG] compile_file_with_modules: Running optimizations\n");
+            }
+            optimization_optimize_program(ir_program);
         }
     }
 

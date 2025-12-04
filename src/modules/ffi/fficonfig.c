@@ -1,4 +1,4 @@
-#include "modules/ffi/fficonfig.h"
+#include "modules/ffi/ffiConfig.h"
 #include "frontend/ast/ast.h"
 #include <string.h>
 

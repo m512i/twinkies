@@ -1,5 +1,5 @@
-#include "backend/codegen/codegen_ffi.h"
-#include "modules/ffi/fficonfig.h"
+#include "backend/codegen/codegenFfi.h"
+#include "modules/ffi/ffiConfig.h"
 #include <stdio.h>
 #include <string.h>
 

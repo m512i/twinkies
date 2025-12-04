@@ -1,5 +1,5 @@
-#include "frontend/ast/aststmt.h"
-#include "frontend/ast/astexpr.h"
+#include "frontend/ast/astStmt.h"
+#include "frontend/ast/astExpr.h"
 
 Stmt *stmt_expr(Expr *expression, int line, int column)
 {

@@ -1,5 +1,5 @@
-#include "backend/codegen/codegen_c_writer.h"
-#include "backend/codegen/codegen_ffi.h"
+#include "backend/codegen/codegenCWriter.h"
+#include "backend/codegen/codegenFfi.h"
 #include "common/flags.h"
 #include "common/utils.h"
 #include <stdio.h>
@@ -176,8 +176,43 @@ void codegen_c_writer_write_function_header(CodeGenerator *generator, IRFunction
             }
         }
     }
+    HashTable *used_temps = hashtable_create(16);
+    for (size_t j = 0; j < func->instructions.size; j++)
+    {
+        IRInstruction *instr = (IRInstruction *)array_get(&func->instructions, j);
+        if (!instr)
+            continue;
+
+        if (instr->result && instr->result->type == IR_OP_TEMP)
+        {
+            char temp_key[32];
+            snprintf(temp_key, sizeof(temp_key), "t%d", instr->result->data.temp_id);
+            hashtable_put(used_temps, temp_key, (void*)(intptr_t)1);
+        }
+        if (instr->arg1 && instr->arg1->type == IR_OP_TEMP)
+        {
+            char temp_key[32];
+            snprintf(temp_key, sizeof(temp_key), "t%d", instr->arg1->data.temp_id);
+            hashtable_put(used_temps, temp_key, (void*)(intptr_t)1);
+        }
+        if (instr->arg2 && instr->arg2->type == IR_OP_TEMP)
+        {
+            char temp_key[32];
+            snprintf(temp_key, sizeof(temp_key), "t%d", instr->arg2->data.temp_id);
+            hashtable_put(used_temps, temp_key, (void*)(intptr_t)1);
+        }
+    }
+
     for (int i = 0; i < func->temp_counter; i++)
     {
+        char temp_key[32];
+        snprintf(temp_key, sizeof(temp_key), "t%d", i);
+        
+        if (!hashtable_contains(used_temps, temp_key))
+        {
+            continue;
+        }
+
         char temp_name[32];
         snprintf(temp_name, sizeof(temp_name), "temp_%d", i);
         DataType temp_type = TYPE_INT;
@@ -191,6 +226,8 @@ void codegen_c_writer_write_function_header(CodeGenerator *generator, IRFunction
         for (size_t j = 0; j < func->instructions.size; j++)
         {
             IRInstruction *instr = (IRInstruction *)array_get(&func->instructions, j);
+            if (!instr)
+                continue;
 
             if (instr->result && instr->result->type == IR_OP_TEMP &&
                 instr->result->data.temp_id == i)
@@ -237,6 +274,8 @@ void codegen_c_writer_write_function_header(CodeGenerator *generator, IRFunction
         }
         codegen_c_writer_write_line(generator, "%s %s;", c_type, temp_name);
     }
+    
+    hashtable_destroy(used_temps);
 
     if (func->temp_counter > 0)
     {

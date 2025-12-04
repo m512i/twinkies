@@ -1,5 +1,5 @@
 #include "backend/ir/irinstructions.h"
-#include "backend/ir/iroperands.h"
+#include "backend/ir/irOps.h"
 
 IRInstruction *ir_instruction_nop(void)
 {
@@ -258,7 +258,6 @@ void ir_instruction_destroy(IRInstruction *instr)
 {
     if (!instr)
         return;
-
     if (instr->result)
         ir_operand_destroy(instr->result);
     if (instr->arg1)

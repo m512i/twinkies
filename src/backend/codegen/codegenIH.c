@@ -1,6 +1,6 @@
-#include "backend/codegen/codegen_instruction_handlers.h"
-#include "backend/codegen/codegen_c_writer.h"
-#include "backend/codegen/codegen_ffi.h"
+#include "backend/codegen/codegenIH.h"
+#include "backend/codegen/codegenCWriter.h"
+#include "backend/codegen/codegenFfi.h"
 #include "common/flags.h"
 #include <stdio.h>
 #include <string.h>

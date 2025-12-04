@@ -1,7 +1,8 @@
-#include "backend/codegen/codegen_strategy.h"
-#include "backend/codegen/codegen_c_writer.h"
-#include "backend/codegen/codegen_ffi.h"
-#include "backend/codegen/codegen_instruction_handlers.h"
+#include "backend/codegen/codegenStrategy.h"
+#include "backend/codegen/codegenCWriter.h"
+#include "backend/codegen/codegenFfi.h"
+#include "backend/codegen/codegenIH.h"
+#include "backend/codegen/codegenPeephole.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,6 +11,10 @@ static void c_strategy_generate_header(CodeGenerator *generator) {
 }
 
 static void c_strategy_generate_program(CodeGenerator *generator) {
+    if (generator->ir_program)
+    {
+        codegen_peephole_optimize_program(generator->ir_program);
+    }
     codegen_core_generate_program(generator);
 }
 

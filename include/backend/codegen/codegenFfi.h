@@ -3,7 +3,7 @@
 
 #include "common/common.h"
 #include "frontend/ast/ast.h"
-#include "backend/codegen/codegen_core.h"
+#include "backend/codegen/codegenCore.h"
 #include <stdio.h>
 
 void codegen_ffi_write_declarations(CodeGenerator *generator, Program *program);

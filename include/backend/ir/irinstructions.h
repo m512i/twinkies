@@ -1,7 +1,7 @@
 #ifndef IRINSTRUCTIONS_H
 #define IRINSTRUCTIONS_H
 
-#include "backend/ir/ir_types.h"
+#include "backend/ir/irTypes.h"
 
 
 IRInstruction *ir_instruction_nop(void);

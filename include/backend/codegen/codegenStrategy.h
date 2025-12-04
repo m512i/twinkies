@@ -4,7 +4,7 @@
 #include "common/common.h"
 #include "backend/ir/ir.h"
 #include "frontend/ast/ast.h"
-#include "backend/codegen/codegen_core.h"
+#include "backend/codegen/codegenCore.h"
 #include <stdio.h>
 
 typedef struct CodeGenStrategy {

@@ -14,6 +14,7 @@ SOURCES = $(wildcard $(SRCDIR)/*.c) \
           $(wildcard $(SRCDIR)/common/*.c) \
           $(wildcard $(SRCDIR)/modules/*.c) \
           $(wildcard $(SRCDIR)/modules/ffi/*.c) \
+          $(wildcard $(SRCDIR)/optimizations/*.c) \
           $(wildcard $(SRCDIR)/runtime/*.c)
 
 OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
@@ -103,29 +104,29 @@ $(BUILDDIR)/frontend/lexer/lexer.o: $(SRCDIR)/frontend/lexer/lexer.c $(INCLUDEDI
 
 $(BUILDDIR)/frontend/parser/parser.o: $(SRCDIR)/frontend/parser/parser.c $(INCLUDEDIR)/frontend/parser/parser.h $(INCLUDEDIR)/frontend/lexer/lexer.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/frontend/ast/ast.o: $(SRCDIR)/frontend/ast/ast.c $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/frontend/ast/astexpr.h $(INCLUDEDIR)/frontend/ast/aststmt.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h
+$(BUILDDIR)/frontend/ast/ast.o: $(SRCDIR)/frontend/ast/ast.c $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/frontend/ast/astExpr.h $(INCLUDEDIR)/frontend/ast/astStmt.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h
 
-$(BUILDDIR)/frontend/ast/astexpr.o: $(SRCDIR)/frontend/ast/astexpr.c $(INCLUDEDIR)/frontend/ast/astexpr.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h
+$(BUILDDIR)/frontend/ast/astExpr.o: $(SRCDIR)/frontend/ast/astExpr.c $(INCLUDEDIR)/frontend/ast/astExpr.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h
 
-$(BUILDDIR)/frontend/ast/aststmt.o: $(SRCDIR)/frontend/ast/aststmt.c $(INCLUDEDIR)/frontend/ast/aststmt.h $(INCLUDEDIR)/frontend/ast/astexpr.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h
+$(BUILDDIR)/frontend/ast/astStmt.o: $(SRCDIR)/frontend/ast/astStmt.c $(INCLUDEDIR)/frontend/ast/astStmt.h $(INCLUDEDIR)/frontend/ast/astExpr.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/frontend/lexer/lexer.h
 
 $(BUILDDIR)/analysis/semantic/semantic.o: $(SRCDIR)/analysis/semantic/semantic.c $(INCLUDEDIR)/analysis/semantic/semantic.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h
 
 $(BUILDDIR)/backend/ir/ir.o: $(SRCDIR)/backend/ir/ir.c $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/frontend/ast/ast.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/codegen/codegen.o: $(SRCDIR)/backend/codegen/codegen.c $(INCLUDEDIR)/backend/codegen/codegen.h $(INCLUDEDIR)/backend/codegen/codegen_core.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+$(BUILDDIR)/backend/codegen/codegen.o: $(SRCDIR)/backend/codegen/codegen.c $(INCLUDEDIR)/backend/codegen/codegen.h $(INCLUDEDIR)/backend/codegen/codegenCore.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/codegen/codegen_core.o: $(SRCDIR)/backend/codegen/codegen_core.c $(INCLUDEDIR)/backend/codegen/codegen_core.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+$(BUILDDIR)/backend/codegen/codegenCore.o: $(SRCDIR)/backend/codegen/codegenCore.c $(INCLUDEDIR)/backend/codegen/codegenCore.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/codegen/codegen_c_writer.o: $(SRCDIR)/backend/codegen/codegen_c_writer.c $(INCLUDEDIR)/backend/codegen/codegen_c_writer.h $(INCLUDEDIR)/backend/codegen/codegen_core.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+$(BUILDDIR)/backend/codegen/codegenCWriter.o: $(SRCDIR)/backend/codegen/codegenCWriter.c $(INCLUDEDIR)/backend/codegen/codegenCWriter.h $(INCLUDEDIR)/backend/codegen/codegenCore.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/codegen/codegen_ffi.o: $(SRCDIR)/backend/codegen/codegen_ffi.c $(INCLUDEDIR)/backend/codegen/codegen_ffi.h $(INCLUDEDIR)/backend/codegen/codegen_core.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+$(BUILDDIR)/backend/codegen/codegenFfi.o: $(SRCDIR)/backend/codegen/codegenFfi.c $(INCLUDEDIR)/backend/codegen/codegenFfi.h $(INCLUDEDIR)/backend/codegen/codegenCore.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/codegen/codegen_instruction_handlers.o: $(SRCDIR)/backend/codegen/codegen_instruction_handlers.c $(INCLUDEDIR)/backend/codegen/codegen_instruction_handlers.h $(INCLUDEDIR)/backend/codegen/codegen_core.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+$(BUILDDIR)/backend/codegen/codegenIH.o: $(SRCDIR)/backend/codegen/codegenIH.c $(INCLUDEDIR)/backend/codegen/codegenIH.h $(INCLUDEDIR)/backend/codegen/codegenCore.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/codegen/codegen_strategy.o: $(SRCDIR)/backend/codegen/codegen_strategy.c $(INCLUDEDIR)/backend/codegen/codegen_strategy.h $(INCLUDEDIR)/backend/codegen/codegen_core.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+$(BUILDDIR)/backend/codegen/codegenStrategy.o: $(SRCDIR)/backend/codegen/codegenStrategy.c $(INCLUDEDIR)/backend/codegen/codegenStrategy.h $(INCLUDEDIR)/backend/codegen/codegenCore.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/assembly/codegenasm.o: $(SRCDIR)/backend/assembly/codegenasm.c $(INCLUDEDIR)/backend/codegen/codegen.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
+$(BUILDDIR)/backend/assembly/codegenAsm.o: $(SRCDIR)/backend/assembly/codegenAsm.c $(INCLUDEDIR)/backend/codegen/codegen.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/common/common.h
 
 $(BUILDDIR)/common/flags.o: $(SRCDIR)/common/flags.c $(INCLUDEDIR)/common/flags.h $(INCLUDEDIR)/common/common.h
 
@@ -133,8 +134,8 @@ $(BUILDDIR)/common/utils.o: $(SRCDIR)/common/utils.c $(INCLUDEDIR)/common/utils.
 
 $(BUILDDIR)/modules/modules.o: $(SRCDIR)/modules/modules.c $(INCLUDEDIR)/modules/modules.h $(INCLUDEDIR)/common/utils.h $(INCLUDEDIR)/common/common.h
 
-$(BUILDDIR)/backend/ir/iroperands.o: $(SRCDIR)/backend/ir/iroperands.c $(INCLUDEDIR)/backend/ir/iroperands.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/backend/ir/ir.h
+$(BUILDDIR)/backend/ir/irOps.o: $(SRCDIR)/backend/ir/irOps.c $(INCLUDEDIR)/backend/ir/irOps.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/backend/ir/ir.h
 
-$(BUILDDIR)/backend/ir/irinstructions.o: $(SRCDIR)/backend/ir/irinstructions.c $(INCLUDEDIR)/backend/ir/irinstructions.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/backend/ir/iroperands.h
+$(BUILDDIR)/backend/ir/irinstructions.o: $(SRCDIR)/backend/ir/irinstructions.c $(INCLUDEDIR)/backend/ir/irinstructions.h $(INCLUDEDIR)/common/common.h $(INCLUDEDIR)/backend/ir/ir.h $(INCLUDEDIR)/backend/ir/irOps.h
 
 .PHONY: all test example clean install uninstall debug release help 

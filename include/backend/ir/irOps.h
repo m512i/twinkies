@@ -1,8 +1,8 @@
-#ifndef IROPERANDS_H
-#define IROPERANDS_H
+#ifndef IROPS_H
+#define IROPS_H
 
-#include "backend/ir/ir_types.h"
-#include "backend/codegen/codegen_core.h"
+#include "backend/ir/irTypes.h"
+#include "backend/codegen/codegenCore.h"
 
 IROperand *ir_operand_temp(int temp_id);
 IROperand *ir_operand_var(const char *var_name);

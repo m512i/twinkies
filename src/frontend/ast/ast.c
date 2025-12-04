@@ -1,6 +1,6 @@
 #include "frontend/ast/ast.h"
-#include "frontend/ast/astexpr.h"
-#include "frontend/ast/aststmt.h"
+#include "frontend/ast/astExpr.h"
+#include "frontend/ast/astStmt.h"
 
 Function *function_create(const char *name, DataType return_type)
 {

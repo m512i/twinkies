@@ -3,7 +3,7 @@
 
 #include "common/common.h"
 #include "frontend/lexer/lexer.h"
-#include "modules/ffi/fficonfig.h"
+#include "modules/ffi/ffiConfig.h"
 
 typedef enum
 {

@@ -1,6 +1,6 @@
 #include "backend/ir/ir.h"
 #include "analysis/semantic/semantic.h"
-#include "backend/ir/iroperands.h"
+#include "backend/ir/irOps.h"
 #include "backend/ir/irinstructions.h"
 #include "common/common.h"
 #include "modules/modules.h"

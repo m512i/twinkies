@@ -1,4 +1,4 @@
-#include "modules/ffi/fficonfig.h"
+#include "modules/ffi/ffiConfig.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

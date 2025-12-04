@@ -1,5 +1,5 @@
 #include "backend/codegen/codegen.h"
-#include "backend/ir/iroperands.h"
+#include "backend/ir/irOps.h"
 #include <stdarg.h>
 extern bool debug_enabled;
 

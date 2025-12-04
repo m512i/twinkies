@@ -1,4 +1,4 @@
-#include "backend/ir/iroperands.h"
+#include "backend/ir/irOps.h"
 
 static void escape_string_for_c(const char *input, FILE *output) {
     while (*input) {
@@ -129,6 +129,12 @@ void ir_operand_destroy(IROperand *operand)
 {
     if (!operand)
         return;
+
+    if (operand->type < IR_OP_TEMP || operand->type > IR_OP_NULL)
+    {
+        safe_free(operand);
+        return;
+    }
 
     switch (operand->type)
     {
