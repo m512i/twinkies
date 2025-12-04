@@ -1,6 +1,7 @@
 # Twinkies
 
 DOCUMENTATION: https://docs.vulnerable.cc
+PAPER: https://vulnerable.cc/
 
 ![Twinkies Logo](image.png)
 
